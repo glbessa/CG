@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hello World in WebGL2</title>
+        <link rel="stylesheet" href="../static/global.css">
+        <script src="../static/utils.js"></script>
+    </head>
+    <body>
+        <script id="vertexShader" type="x-shader/x-vertex">#version 300 es
+            precision mediump float;
+
+            in vec4 position;
+            in vec3 color;
+            uniform vec2 u_resolution;
+            
+            out vec3 v_color;
+
+            void main() {
+                v_color = color;
+
+                vec2 zero2one = position.xy / u_resolution;
+                vec2 zero2two = zero2one * 2.0;
+                vec2 clip_space = zero2two - 1.0;
+
+                gl_Position = vec4(clip_space * vec2(1, -1), 0, 1);
+            }
+        </script>
+        <script id="fragmentShader" type="x-shader/x-fragment">#version 300 es
+            precision mediump float;
+            in vec3 v_color;
+            out vec4 out_color;
+
+            void main() {
+                out_color = vec4(v_color, 1);
+            }
+        </script>
+        <canvas id="canvas"></canvas>
+        <script>
+            function main() {
+                var canvas = document.getElementById('canvas');
+                var gl = canvas.getContext('webgl2');
+
+                if (!gl) {
+                    console.log("WebGL2 not supported");
+                }
+
+                const vertex_data = [
+                    200, 150, 0,
+                    0, 150, 0,
+                    100, 0, 0
+                ];
+
+                const color_data = [
+                    1, 0, 0,
+                    0, 1, 0,
+                    0, 0, 1,
+                ];
+
+                var position_buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, position_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+
+                var color_buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color_data), gl.STATIC_DRAW);
+
+                var vertex_shader_source = document.getElementById("vertexShader").textContent;
+                var fragment_shader_source = document.getElementById("fragmentShader").textContent;
+
+                var vertex_shader = create_shader(gl, gl.VERTEX_SHADER, vertex_shader_source);
+                var fragment_shader = create_shader(gl, gl.FRAGMENT_SHADER, fragment_shader_source);
+                var program = create_program(gl, vertex_shader, fragment_shader);
+
+                var vao = gl.createVertexArray();
+                gl.bindVertexArray(vao);
+
+                var position_attribute_location = gl.getAttribLocation(program, "position");
+                gl.enableVertexAttribArray(position_attribute_location);
+                gl.bindBuffer(gl.ARRAY_BUFFER, position_buffer);
+                var size = 3;           // 2 componentes por iteracao
+                var type = gl.FLOAT;    // dados de 32 bits float
+                var normalized = false; // nao normalizar os dados
+                var stride = 0;         // 0 = move forward size * sizeof(type) each iteration to get the next position
+                var offset = 0;         // inicia no inicio do buffer
+                gl.vertexAttribPointer(position_attribute_location, size, type, normalized, stride, offset);
+
+                var color_attribute_location = gl.getAttribLocation(program, "color");
+                gl.enableVertexAttribArray(color_attribute_location);
+                gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+                gl.vertexAttribPointer(color_attribute_location, 3, gl.FLOAT, false, 0, 0);
+
+                var resolution_uniform_location = gl.getUniformLocation(program, "u_resolution");
+
+                resize_canvas_to_display_size(gl.canvas);
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+                gl.clearColor(0, 0, 0, 0);
+                gl.clear(gl.CLEAR_BUFFER_BIT);
+
+                gl.useProgram(program);
+
+                gl.uniform2f(resolution_uniform_location, gl.canvas.width, gl.canvas.height);
+
+                var primitive_type = gl.TRIANGLES;
+                var offset = 0;
+                var count = 3;
+                gl.drawArrays(primitive_type, offset, count);
+            }
+
+            document.body.onload = main;
+        </script>
+    </body>
+</html>

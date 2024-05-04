@@ -46,6 +46,10 @@ function create_program(gl, vertex_shader, fragment_shader) {
     gl.deleteProgram(program);
 }
 
+function set_triangule(gl, vertex_data) {
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+}
+
 function set_rectangle(gl, x, y, width, height) {
     var x1 = x;
     var x2 = x + width;
@@ -64,4 +68,21 @@ function set_rectangle(gl, x, y, width, height) {
 
 function random_int(start, stop) {
     return Math.floor(Math.random() * stop) + start;
+}
+
+class DrawableObject {
+    constructor(gl, program, vertex_data) {
+        this.gl = gl;
+        this.program = program;
+        this.vertex_data = vertex_data;
+        this.buffer = gl.createBuffer();
+    }
+
+    
+
+    draw() {
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
+        set_triangule(this.gl, this.vertex_data);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertex_data.length / 2);
+    }
 }
