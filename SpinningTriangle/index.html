@@ -88,6 +88,8 @@
                 console.log("WebGL2 not supported");
             }
 
+            var right = true;
+
             const triangle = {
                 vertex_data: [
                     200, 150, 0,
@@ -219,15 +221,29 @@
             }
 
             function spin_triangle() {
+                //mat4.rotateX(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                //mat4.rotateY(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                //mat4.rotateZ(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                if (triangle.transformation_matrix[12] <= 0)
+                    right = true;
+                else if (triangle.transformation_matrix[12] >= gl.canvas.width)
+                    right = false;
 
+                if (right)
+                    mat4.translate(triangle.transformation_matrix, triangle.transformation_matrix, [1, 0, 0]);
+                else
+                    mat4.translate(triangle.transformation_matrix, triangle.transformation_matrix, [-1, 0, 0]);
+                
+                draw();
             }
 
             document.body.onload = main;
-            //var interval_id = document.setInterval(spin_triangle, 1);
             document.getElementById('resize_btn').addEventListener('click', resize_canvas);
             document.getElementById('translate_btn').addEventListener('click', translate);
             document.getElementById('scale_btn').addEventListener('click', scale);
             document.getElementById('rotate_btn').addEventListener('click', rotate);
+
+            var interval_id = setInterval(spin_triangle, 10);
         </script>
     </body>
 </html>

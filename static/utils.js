@@ -71,18 +71,41 @@ function random_int(start, stop) {
 }
 
 class DrawableObject {
-    constructor(gl, program, vertex_data) {
-        this.gl = gl;
-        this.program = program;
+    constructor(index_data, vertex_data, color_data, normal_data, texture_coords_data, texture, uniform_locations) {
+        this.index_data = index_data;
         this.vertex_data = vertex_data;
-        this.buffer = gl.createBuffer();
+        this.color_data = color_data;
+        this.normal_data = normal_data;
+        this.texture_coords_data = texture_coords_data;
+        this.buffers = {
+            vertex: gl.createBuffer(),
+            color: gl.createBuffer()
+        };
+        this.transforms = {
+            translation: mat4.create(),
+            rotation: mat4.create(),
+            scale: mat4.create(),
+            resultant: null
+        };
+        this.texture = texture;
+        this.uniform_locations = uniform_locations;
     }
 
-    
+    apply_transforms() {
+        mat4.multiply(this.transforms.resultant, this.transforms.translation, this.transforms.rotation);
+        mat4.multiply(this.transforms.resultant, this.transforms.resultant, this.transforms.scale);
+    }
 
     draw() {
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
-        set_triangule(this.gl, this.vertex_data);
-        this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertex_data.length / 2);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertex_data), gl.STATIC_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.color);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.color_data), gl.STATIC_DRAW);
+
+        this.apply_transforms();
+        gl.uniformMatrix4fv(this.uniform_locations.transforms_matrix, false, this.transforms.resultant);
+
+        gl.drawArrays(gl.TRIANGLES, 0, this.vertex_data.length / 3);
     }
 }
