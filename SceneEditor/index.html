@@ -82,7 +82,7 @@
             const { mat2, mat2d, mat4, mat3, quat, quat2, vec2, vec3, vec4 } = glMatrix;
 
             var canvas = document.getElementById('canvas');
-            const gl = canvas.getContext('webgl2');
+            var gl = canvas.getContext('webgl2');
 
             if (!gl) {
                 console.log("WebGL2 not supported");
@@ -90,40 +90,35 @@
 
             var right = true;
 
+            const triangle = {
+                vertex_data: [
+                    200, 150, 0,
+                    0, 150, 0,
+                    100, 0, 0
+                ],
+                color_data: [
+                    1, 0, 0,
+                    0, 1, 0,
+                    0, 0, 1,
+                ],
+                transformation_matrix: mat4.create(),
+                position_buffer: gl.createBuffer(),
+                color_buffer: gl.createBuffer()
+            };
+
             const attribute_locations = {
                 position: null,
                 color: null
             }
-
-            var vao = null;
-
-            var program = null;
 
             const uniform_locations = {
                 u_resolution: null,
                 transformation_matrix: null
             };
 
-            const triangle = new DrawableObject(
-                gl,
-                mat4,
-                [],
-                [
-                    200, 150, 0,
-                    0, 150, 0,
-                    100, 0, 0
-                ],
-                [
-                    1, 0, 0,
-                    0, 1, 0,
-                    0, 0, 1,
-                ],
-                null,
-                [],
-                [],
-                uniform_locations
-            );
+            var vao = null;
 
+            var program = null;
 
             function clear_gl_canvas() {
                 resize_canvas_to_display_size(gl.canvas);
@@ -146,16 +141,23 @@
 
                 attribute_locations.position = gl.getAttribLocation(program, "position");
                 gl.enableVertexAttribArray(attribute_locations.position);
-                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.buffers.vertex);
-                gl.vertexAttribPointer(attribute_locations.position, 3, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.position_buffer);
+                var size = 3;           // 2 componentes por iteracao
+                var type = gl.FLOAT;    // dados de 32 bits float
+                var normalized = false; // nao normalizar os dados
+                var stride = 0;         // 0 = move forward size * sizeof(type) each iteration to get the next position
+                var offset = 0;         // inicia no inicio do buffer
+                gl.vertexAttribPointer(attribute_locations.position, size, type, normalized, stride, offset);
 
                 attribute_locations.color = gl.getAttribLocation(program, "color");
                 gl.enableVertexAttribArray(attribute_locations.color);
-                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.buffers.color);
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.color_buffer);
                 gl.vertexAttribPointer(attribute_locations.color, 3, gl.FLOAT, false, 0, 0);
 
                 uniform_locations.u_resolution = gl.getUniformLocation(program, "u_resolution");
                 uniform_locations.transformation_matrix = gl.getUniformLocation(program, "transformation_matrix");
+
+                clear_gl_canvas();
 
                 gl.useProgram(program);
             }
@@ -163,8 +165,19 @@
             function draw() {
                 clear_gl_canvas();
                 
-                triangle.draw();
-                console.log("draw")
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.position_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle.vertex_data), gl.STATIC_DRAW);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangle.color_buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(triangle.color_data), gl.STATIC_DRAW);
+
+                gl.uniform2f(uniform_locations.u_resolution, gl.canvas.width, gl.canvas.height);
+                gl.uniformMatrix4fv(uniform_locations.transformation_matrix, false, triangle.transformation_matrix);
+
+                var primitive_type = gl.TRIANGLES;
+                var offset = 0;
+                var count = 3;
+                gl.drawArrays(primitive_type, offset, count);
             }
 
             function main() {
@@ -185,7 +198,7 @@
                 const x = parseInt(document.getElementById('translate-x').value);
                 const y = parseInt(document.getElementById('translate-y').value);
                 const z = parseInt(document.getElementById('translate-z').value);
-                mat4.translate(triangle.transforms.translation, mat4.create(), [x, y, z]);
+                mat4.translate(triangle.transformation_matrix, triangle.transformation_matrix, [x, y, z]);
                 draw();
             }
 
@@ -193,7 +206,7 @@
                 const x = document.getElementById('scale-x').value;
                 const y = document.getElementById('scale-y').value;
                 const z = document.getElementById('scale-z').value;
-                mat4.scale(triangle.transforms.scale, mat4.create(), [x, y, z]);
+                mat4.scale(triangle.transformation_matrix, triangle.transformation_matrix, [x, y, z]);
                 draw();
             }
 
@@ -201,20 +214,25 @@
                 const x = document.getElementById('rotate-x').value;
                 const y = document.getElementById('rotate-y').value;
                 const z = document.getElementById('rotate-z').value;
-                mat4.rotate(triangle.transforms.rotation, mat4.create(), [x, y, z])
+                mat4.rotateX(triangle.transformation_matrix, triangle.transformation_matrix, x);
+                mat4.rotateY(triangle.transformation_matrix, triangle.transformation_matrix, y);
+                mat4.rotateZ(triangle.transformation_matrix, triangle.transformation_matrix, z);
                 draw();
             }
 
             function spin_triangle() {
-                if (triangle.transforms.resultant[12] <= 0)
+                //mat4.rotateX(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                //mat4.rotateY(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                //mat4.rotateZ(triangle.transformation_matrix, triangle.transformation_matrix, 0.01);
+                if (triangle.transformation_matrix[12] <= 0)
                     right = true;
-                else if (triangle.transforms.resultant[12] >= gl.canvas.width)
+                else if (triangle.transformation_matrix[12] >= gl.canvas.width)
                     right = false;
 
                 if (right)
-                    mat4.translate(triangle.transforms.translation, triangle.transforms.translation, [1, 0, 0]);
+                    mat4.translate(triangle.transformation_matrix, triangle.transformation_matrix, [1, 0, 0]);
                 else
-                    mat4.translate(triangle.transforms.translation, triangle.transforms.translation, [-1, 0, 0]);
+                    mat4.translate(triangle.transformation_matrix, triangle.transformation_matrix, [-1, 0, 0]);
                 
                 draw();
             }
@@ -225,7 +243,7 @@
             document.getElementById('scale_btn').addEventListener('click', scale);
             document.getElementById('rotate_btn').addEventListener('click', rotate);
 
-            //var interval_id = setInterval(spin_triangle, 10);
+            var interval_id = setInterval(spin_triangle, 10);
         </script>
     </body>
 </html>
