@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hello World in WebGL2</title>
+        <script src="../static/gl-matrix-min.js" defer></script>
+        <script src="../static/DrawableObject.js" type="module"></script>
+        <script src="../static/utils.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas" style="border: 1px solid black; width: 100%; height: 70vh;"></canvas>
+        <script id="vertexShader" type="x-shader/x-vertex">#version 300 es
+            precision mediump float;
+
+            in vec4 position;
+            in vec3 color;
+            in vec4 object_transforms0;
+            in vec4 object_transforms1;
+            in vec4 object_transforms2;
+            in vec4 object_transforms3;
+            
+            uniform vec2 screen_resolution;
+            uniform mat4 camera_transforms;
+            
+            out vec3 v_color;
+
+            void main() {
+                v_color = color;
+
+                mat4 object_transforms = mat4(
+                    object_transforms0,
+                    object_transforms1,
+                    object_transforms2,
+                    object_transforms3
+                );
+
+                vec4 transformed_position = (object_transforms * camera_transforms) * position;
+                transformed_position = camera_transforms * transformed_position;
+
+                vec2 zero2one = transformed_position.xy / screen_resolution;
+                vec2 zero2two = zero2one * 2.0;
+                vec2 clip_space = zero2two - 1.0;
+
+                gl_Position = vec4(clip_space * vec2(1, -1), transformed_position.z, 1);
+            }
+        </script>
+        <script id="fragmentShader" type="x-shader/x-fragment">#version 300 es
+            precision mediump float;
+            in vec3 v_color;
+            out vec4 out_color;
+
+            void main() {
+                out_color = vec4(v_color, 1);
+            }
+        </script>
+        <script type="module">
+            import { SimpleDrawableObjectFactory, SimpleDrawableObject } from '../static/DrawableObject.js';
+            
+            import '../static/gl-matrix-min.js';
+            const { mat2, mat2d, mat4, mat3, quat, quat2, vec2, vec3, vec4 } = glMatrix;
+
+
+            const canvas = document.getElementById('canvas');
+            const gl = canvas.getContext('webgl2');
+
+            if (!gl) {
+                console.log("WebGL2 not supported");
+            }
+
+            var start = null;
+            var fps = 30;
+            var secondsToNextFrame = 1 / fps;
+
+            const factory = new SimpleDrawableObjectFactory(gl);
+
+            const objects = [
+                factory.create_rectangle([0, 0], 80, 30, [1, 0, 0]),
+                //factory.create_rectangle([canvas.width - 80, 0], 80, 30, [0, 1, 0]),
+            ]
+
+            const attribute_locations = {
+                position: null,
+                color: null,
+                object_transforms: [
+                    null,
+                    null,
+                    null,
+                    null
+                ]
+            };
+
+            const attribute_buffers = {
+                position: gl.createBuffer(),
+                color: gl.createBuffer(),
+                object_transforms: [
+                    gl.createBuffer(),
+                    gl.createBuffer(),
+                    gl.createBuffer(),
+                    gl.createBuffer()
+                ]
+            };
+
+            const uniform_locations = {
+                screen_resolution: null,
+                camera_transforms: null
+            };
+
+            var vao = null;
+            var program = null;
+
+            function init() {
+                var vertex_shader_source = document.getElementById("vertexShader").textContent;
+                var fragment_shader_source = document.getElementById("fragmentShader").textContent;
+
+                var vertex_shader = create_shader(gl, gl.VERTEX_SHADER, vertex_shader_source);
+                var fragment_shader = create_shader(gl, gl.FRAGMENT_SHADER, fragment_shader_source);
+                program = create_program(gl, vertex_shader, fragment_shader);
+
+                vao = gl.createVertexArray();
+                gl.bindVertexArray(vao);
+
+                attribute_locations.position = gl.getAttribLocation(program, "position");
+                gl.enableVertexAttribArray(attribute_locations.position);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.position);               
+                gl.vertexAttribPointer(attribute_locations.position, 3, gl.FLOAT, false, 0, 0);
+
+                attribute_locations.color = gl.getAttribLocation(program, "color");
+                gl.enableVertexAttribArray(attribute_locations.color);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.color);
+                gl.vertexAttribPointer(attribute_locations.color, 3, gl.FLOAT, false, 0, 0);
+
+                attribute_locations.object_transforms[0] = gl.getAttribLocation(program, "object_transforms0");
+                gl.enableVertexAttribArray(attribute_locations.object_transforms[0]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.object_transforms[0]);
+                gl.vertexAttribPointer(attribute_locations.object_transforms0, 4, gl.FLOAT, false, 0, 0);
+                console.log(attribute_buffers.object_transforms[0])
+
+                attribute_locations.object_transforms[1] = gl.getAttribLocation(program, "object_transforms1");
+                gl.enableVertexAttribArray(attribute_locations.object_transforms[1]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.object_transforms[1]);
+                gl.vertexAttribPointer(attribute_locations.object_transforms1, 4, gl.FLOAT, false, 0, 0);
+
+                attribute_locations.object_transforms[2] = gl.getAttribLocation(program, "object_transforms2");
+                gl.enableVertexAttribArray(attribute_locations.object_transforms[2]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.object_transforms[2]);
+                gl.vertexAttribPointer(attribute_locations.object_transforms2, 4, gl.FLOAT, false, 0, 0);
+
+                attribute_locations.object_transforms[3] = gl.getAttribLocation(program, "object_transforms3");
+                gl.enableVertexAttribArray(attribute_locations.object_transforms[3]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, attribute_buffers.object_transforms[3]);
+                gl.vertexAttribPointer(attribute_locations.object_transforms3, 4, gl.FLOAT, false, 0, 0);
+
+                uniform_locations.screen_resolution = gl.getUniformLocation(program, "screen_resolution");
+                uniform_locations.camera_transforms = gl.getUniformLocation(program, "camera_transforms");
+
+                gl.useProgram(program);
+
+                gl.uniform2f(uniform_locations.screen_resolution, gl.canvas.width, gl.canvas.height);
+                gl.uniformMatrix4fv(uniform_locations.camera_transforms, false, mat4.create());
+
+                clear_gl_canvas(gl);
+            }
+
+            function animate(timeStamp) {
+                if (!start) start = timeStamp;
+                var progress = timeStamp - start;
+
+                if (progress > secondsToNextFrame * 100) {
+                    start = timeStamp;
+
+                    clear_gl_canvas(gl);
+
+                    for (let object of objects) {
+                        object.draw(gl, attribute_buffers);
+                        //console.log(new Float32Array(object.transforms.resultant.slice(0, 4)));
+                    }
+                }
+                
+                window.requestAnimationFrame(animate);
+            }
+
+            function main() {
+                resize_canvas_to_display_size(gl.canvas);
+                init();
+            }
+
+            document.body.onload = main;
+
+            window.onresize = (event) => {
+                resize_canvas_to_display_size(gl.canvas);
+            }
+
+            window.requestAnimationFrame(animate);
+        </script>
+    </body>
+</html>
