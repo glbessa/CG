@@ -23,7 +23,7 @@ function clear_gl_canvas(gl) {
     gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
-function create_shader(gl, type, source) {
+function createShader(gl, type, source) {
     var shader = gl.createShader(type);
     
     gl.shaderSource(shader, source);
@@ -38,7 +38,7 @@ function create_shader(gl, type, source) {
     gl.deleteShader(shader);
 }
 
-function create_program(gl, vertex_shader, fragment_shader) {
+function createProgram(gl, vertex_shader, fragment_shader) {
     var program = gl.createProgram();
     
     gl.attachShader(program, vertex_shader);
@@ -54,26 +54,28 @@ function create_program(gl, vertex_shader, fragment_shader) {
     gl.deleteProgram(program);
 }
 
-function set_triangule(gl, vertex_data) {
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
-}
-
-function set_rectangle(gl, x, y, width, height) {
-    var x1 = x;
-    var x2 = x + width;
-    var y1 = y;
-    var y2 = y + height;
-    
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        x1, y1,
-        x2, y1,
-        x1, y2,
-        x1, y2,
-        x2, y1,
-        x2, y2,
-    ]), gl.STATIC_DRAW);
-}
-
-function random_int(start, stop) {
+function randomInt(start, stop) {
     return Math.floor(Math.random() * stop) + start;
+}
+
+function degToRad(deg) {
+    return deg * Math.PI / 180;
+}
+
+function calculateBoundingSphere(objs) {
+	let min = [Infinity, Infinity, Infinity];
+	let max = [-Infinity, -Infinity, -Infinity];
+  
+	objs.forEach(obj => {
+	  min = min.map((value, index) => Math.min(value, obj.extents.min[index]));
+	  max = max.map((value, index) => Math.max(value, obj.extents.max[index]));
+	});
+  
+	const center = min.map((min, index) => (min + max[index]) / 2);
+	const radius = Math.sqrt(max.reduce((acc, max, index) => {
+	  const distance = max - center[index];
+	  return acc + distance * distance;
+	}, 0));
+  
+	return { center, radius };
 }

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Procedural Generation WebGL</title>
+        <link rel="stylesheet" href="../static/global.css">
+        <link rel="stylesheet" href="../static/index.css">
+        <script src="../static/gl-matrix-min.js" defer></script>
+        <script src="../static/utils.js"></script>
+        <script src="../static/model-loader.js"></script>
+        <script src="../static/twgl.min.js"></script>
+        <script src="../static/m4.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas" style="border: 1px solid black; width: 100%; height: 100vh;"></canvas>
+        <div id="controlsContainer">
+            
+        </div>
+        <script src="shader.vert" id="vertexShader" type="x-shader/x-vertex"></script>
+        <script src="shader.frag" id="fragmentShader" type="x-shader/x-fragment"></script>
+        <script src="index.js" type="module"></script>
+    </body>
+</html>

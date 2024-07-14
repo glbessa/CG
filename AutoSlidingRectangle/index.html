@@ -112,10 +112,11 @@
             function init() {
                 var vertex_shader_source = document.getElementById("vertexShader").textContent;
                 var fragment_shader_source = document.getElementById("fragmentShader").textContent;
-
+                
                 var vertex_shader = create_shader(gl, gl.VERTEX_SHADER, vertex_shader_source);
                 var fragment_shader = create_shader(gl, gl.FRAGMENT_SHADER, fragment_shader_source);
                 program = create_program(gl, vertex_shader, fragment_shader);
+                //const programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
 
                 vao = gl.createVertexArray();
                 gl.bindVertexArray(vao);
