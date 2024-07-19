@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Procedural Generation WebGL</title>
+        <link rel="stylesheet" href="../static/global.css">
+        <link rel="stylesheet" href="../static/index.css">
+        <script src="../static/gl-matrix/gl-matrix.js"></script>
+        <script src="../static/utils.js"></script>
+        <script src="../static/model-loader.js"></script>
+        <script src="../static/twgl/twgl-full.js"></script>
+        <script src="../static/m4.js"></script>
+        <script src="../static/perlin.js"></script>
+        <script src="../static/seedrandom/seedrandom.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <div id="uiContainer">
+            <div id="ui">
+                <div>
+                    <label for="seed">Seed</label>
+                    <input type="text" name="seed" id="txtSeed" value="12345">
+                </div>
+                <div>
+                    <label for="mapSize">Map size</label>
+                    <input type="range" name="mapSize" id="rgeMapSize" min="10" max="100" value="50">
+                </div>
+                <div>
+                    <label for="exparsability">Exparsability</label>
+                    <input type="range" name="exparsability" id="rgeExparsability" min="1" max="10" value="5">
+                </div>
+                <div>
+                    <label for="commonTreeProb">Common tree probability</label>
+                    <input type="range" class="rgeProbs" name="commonTreeProb" id="commonTreeProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="palmTreeProb">Palm tree probability</label>
+                    <input type="range" class="rgeProbs" name="palmTreeProb" id="palmTreeProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="pineTreeProb">Pine tree probability</label>
+                    <input type="range" class="rgeProbs" name="pineTreeProb" id="pineTreeProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="birchTreeProb">Birch tree probability</label>
+                    <input type="range" class="rgeProbs" name="birchTreeProb" id="birchTreeProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="cactusProb">Cactus probability</label>
+                    <input type="range" class="rgeProbs" name="cactusProb" id="cactusProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="bushProb">Bush probability</label>
+                    <input type="range" class="rgeProbs" name="bushProb" id="bushProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="grassProb">Grass probability</label>
+                    <input type="range" class="rgeProbs" name="grassProb" id="grassProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <label for="emptyProb">Empty probability</label>
+                    <input type="range" class="rgeProbs" name="emptyProb" id="emptyProb" value="25" min="0" max="100">
+                </div>
+                <div>
+                    <input type="button" value="Generate" id="btnGenerate">
+                    <input type="button" value="Reset" id="btnReset">
+                </div>
+            </div>
+        </div>
+        <script src="shader.vert" id="vertexShader" type="x-shader/x-vertex"></script>
+        <script src="shader.frag" id="fragmentShader" type="x-shader/x-fragment"></script>
+        <script src="index.js"></script>
+    </body>
+</html>

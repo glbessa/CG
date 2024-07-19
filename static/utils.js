@@ -54,8 +54,8 @@ function createProgram(gl, vertex_shader, fragment_shader) {
     gl.deleteProgram(program);
 }
 
-function randomInt(start, stop) {
-    return Math.floor(Math.random() * stop) + start;
+function randomInt(start, end) {
+    return Math.floor(Math.random() * end) + start;
 }
 
 function degToRad(deg) {
