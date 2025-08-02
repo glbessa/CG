@@ -4,12 +4,102 @@
   <meta charset="UTF-8">
   <title>Simulação Sistema Solar</title>
   <style>
-    html, body { margin: 0; height: 100%; background: black; }
-    canvas { width: 100%; height: 100%; display: block; }
+    html, body { 
+      margin: 0; 
+      height: 100%; 
+      background: black; 
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    canvas { 
+      width: 100%; 
+      height: 100%; 
+      display: block; 
+    }
+    
+    .controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      max-width: 300px;
+      z-index: 1000;
+    }
+    
+    .controls h3 {
+      margin: 0 0 10px 0;
+      color: #4CAF50;
+    }
+    
+    .controls .mode {
+      color: #FFD700;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .controls .section {
+      margin-bottom: 10px;
+    }
+    
+    .controls .key {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    
+    .speed-indicator {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      z-index: 1000;
+    }
   </style>
 </head>
 <body>
   <canvas id="glcanvas"></canvas>
+  
+  <!-- Interface de controles -->
+  <div class="controls">
+    <h3>🚀 Controles de Navegação</h3>
+    <div class="mode" id="mode-indicator">Modo: Orbital</div>
+    
+    <div class="section">
+      <strong>Geral:</strong><br>
+      <span class="key">C</span> Alternar modo câmera<br>
+      <span class="key">ESC</span> Liberar mouse (modo livre)
+    </div>
+    
+    <div class="section">
+      <strong>Modo Orbital:</strong><br>
+      <span class="key">Mouse</span> Rotacionar ao redor do centro<br>
+      <span class="key">Scroll</span> Zoom in/out
+    </div>
+    
+    <div class="section">
+      <strong>Modo Livre:</strong><br>
+      <span class="key">WASD</span> / <span class="key">Setas</span> Mover<br>
+      <span class="key">Q</span> / <span class="key">Space</span> Subir<br>
+      <span class="key">E</span> / <span class="key">Shift</span> Descer<br>
+      <span class="key">Mouse</span> Olhar ao redor<br>
+      <span class="key">Scroll</span> Ajustar velocidade
+    </div>
+  </div>
+  
+  <div class="speed-indicator" id="speed-indicator">
+    Velocidade: 0.1
+  </div>
+
   <script src="../static/gl-matrix/gl-matrix-min.js"></script>
   <script src="../static/twgl/twgl-full.min.js"></script>
   <!-- <script src="shaders.js"></script> -->
