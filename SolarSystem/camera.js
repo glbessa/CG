@@ -15,7 +15,7 @@ const camera = {
   // Configurações gerais
   fov: Math.PI / 4, // campo de visão
   near: 0.1,       // plano próximo
-  far: 100,        // plano distante
+  far: 100000000,        // plano distante
   speed: 0.1,      // velocidade de movimento
   sensitivity: 0.005, // sensibilidade do mouse
   
@@ -28,7 +28,7 @@ const camera = {
   
   // Limites para modo orbital
   minRadius: 2.0,
-  maxRadius: 50.0,
+  maxRadius: 100000000,
   minPhi: 0.01,
   maxPhi: Math.PI - 0.01,
   

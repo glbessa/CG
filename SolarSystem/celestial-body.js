@@ -1,6 +1,7 @@
 import * as twgl from "../static/twgl/twgl-full.module.js";
 import * as m4 from '../static/gl-matrix/esm/mat4.js';
 import { gl } from './init.js';
+import CONFIG from './config.js';
 
 class CelestialBody {
   constructor(options = {}) {
@@ -37,6 +38,9 @@ class CelestialBody {
     this.rotationSpeed = options.rotationSpeed || this.calculateRotationSpeed();
     this.color = options.color || this.calculateColor();
     
+    // Parâmetros para órbita elíptica
+    this.ellipticalOrbit = this.calculateEllipticalOrbitParams();
+    
     this.position = options.position || [0, 0, 0];
     this.rotation = options.rotation || [0, 0, 0];
     this.orbitCenter = options.orbitCenter || [0, 0, 0];
@@ -60,9 +64,11 @@ class CelestialBody {
     
     // Escala logarítmica para visualização (Sol como referência)
     if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') {
-      return 2.0; // Sol fixo em 2.0
+      return 1391000 / CONFIG.scale; // Sol fixo em 1391000 km
     }
     
+    return this.physicalData.diameter / CONFIG.scale;
+
     const sunDiameter = 1391000; // km
     const logScale = Math.log(this.physicalData.diameter / 12756) * 0.3 + 0.8; // Terra como base
     return Math.max(0.2, Math.min(logScale, 2.5)); // Limita entre 0.2 e 2.5
@@ -72,7 +78,9 @@ class CelestialBody {
   calculateOrbitRadius() {
     if (this.physicalData.distanceFromSun === 0) return 0;
     if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
-    
+
+    return ((this.physicalData.perihelion + this.physicalData.aphelion) / 2) / CONFIG.scale;
+
     // Escala para visualização com compressão logarítmica
     const earthDistance = 149.6; // milhões de km
     const relativeDistance = this.physicalData.distanceFromSun / earthDistance;
@@ -128,6 +136,62 @@ class CelestialBody {
     return [0.2, 0.4, 0.8, 1.0]; // Azul escuro (Netuno, Plutão)
   }
 
+  // Calcula parâmetros para órbita elíptica realista
+  calculateEllipticalOrbitParams() {
+    if (this.physicalData.distanceFromSun === 0 || 
+        this.name.toLowerCase() === 'sun' || 
+        this.name.toLowerCase() === 'sol') {
+      return {
+        semiMajorAxis: 0,
+        semiMinorAxis: 0,
+        eccentricity: 0,
+        perihelion: 0,
+        aphelion: 0,
+        focalDistance: 0,
+        isElliptical: false
+      };
+    }
+
+    // Converter distâncias reais para escala visual
+    const earthDistance = 149.6; // milhões de km (1 AU)
+    const scaleCompression = 5; // Fator de compressão para visualização
+    
+    // Calcular semi-eixo maior (a) e excentricidade (e)
+    const realSemiMajorAxis = this.physicalData.distanceFromSun; // distância média em milhões de km
+    const eccentricity = this.physicalData.orbitalEccentricity;
+    
+    // Aplicar escala visual com compressão logarítmica para planetas distantes
+    let visualSemiMajorAxis;
+    const relativeDistance = realSemiMajorAxis / earthDistance;
+    
+    if (relativeDistance > 10) {
+      visualSemiMajorAxis = 15 + Math.log(relativeDistance / 10) * 5;
+    } else {
+      visualSemiMajorAxis = relativeDistance * scaleCompression;
+    }
+    
+    // Calcular semi-eixo menor (b) usando: b = a * sqrt(1 - e²)
+    const semiMinorAxis = visualSemiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity);
+    
+    // Calcular distância focal (c) usando: c = a * e
+    const focalDistance = visualSemiMajorAxis * eccentricity;
+    
+    // Calcular periélio e afélio visuais
+    const visualPerihelion = visualSemiMajorAxis * (1 - eccentricity);
+    const visualAphelion = visualSemiMajorAxis * (1 + eccentricity);
+    
+    return {
+      semiMajorAxis: visualSemiMajorAxis,
+      semiMinorAxis: semiMinorAxis,
+      eccentricity: eccentricity,
+      perihelion: visualPerihelion,
+      aphelion: visualAphelion,
+      focalDistance: focalDistance,
+      isElliptical: eccentricity > 0.001, // Considerar elíptica se e > 0.001
+      inclination: this.physicalData.orbitalInclination * Math.PI / 180 // Converter para radianos
+    };
+  }
+
   // Método estático para carregar do data.json
   static async loadFromDataJson(name, visualOptions = {}) {
     try {
@@ -177,6 +241,51 @@ class CelestialBody {
     }
   }
   
+  // Calcula a posição atual na órbita elíptica
+  calculateEllipticalPosition(time) {
+    const orbit = this.ellipticalOrbit;
+    
+    // Anomalia média (varia linearmente com o tempo)
+    const meanAnomaly = (time * this.orbitSpeed) % (2 * Math.PI);
+    
+    // Resolver a equação de Kepler para encontrar a anomalia excêntrica
+    // E - e*sin(E) = M (onde E = anomalia excêntrica, e = excentricidade, M = anomalia média)
+    const eccentricAnomaly = this.solveKeplersEquation(meanAnomaly, orbit.eccentricity);
+    
+    // Calcular posição na órbita elíptica
+    const x = orbit.semiMajorAxis * (Math.cos(eccentricAnomaly) - orbit.eccentricity);
+    const z = orbit.semiMinorAxis * Math.sin(eccentricAnomaly);
+    
+    // Aplicar inclinação orbital se houver
+    let finalX = x;
+    let finalY = 0;
+    let finalZ = z;
+    
+    if (orbit.inclination && Math.abs(orbit.inclination) > 0.001) {
+      // Rotacionar em torno do eixo X para aplicar inclinação
+      finalY = z * Math.sin(orbit.inclination);
+      finalZ = z * Math.cos(orbit.inclination);
+    }
+    
+    return { x: finalX, y: finalY, z: finalZ };
+  }
+  
+  // Resolve a equação de Kepler usando método iterativo de Newton-Raphson
+  solveKeplersEquation(meanAnomaly, eccentricity, maxIterations = 10, tolerance = 1e-6) {
+    let E = meanAnomaly; // Primeira aproximação
+    
+    for (let i = 0; i < maxIterations; i++) {
+      const deltaE = (E - eccentricity * Math.sin(E) - meanAnomaly) / (1 - eccentricity * Math.cos(E));
+      E = E - deltaE;
+      
+      if (Math.abs(deltaE) < tolerance) {
+        break;
+      }
+    }
+    
+    return E;
+  }
+  
   initGeometry() {
     // Criar geometria esférica com base no raio
     this.bufferInfo = twgl.primitives.createSphereBufferInfo(gl, this.radius, 64, 32);
@@ -195,8 +304,16 @@ class CelestialBody {
     // Reset da matriz
     m4.identity(this.worldMatrix);
     
-    // Aplicar órbita se houver
-    if (this.orbitRadius > 0) {
+    // Aplicar órbita elíptica se houver
+    if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
+      const position = this.calculateEllipticalPosition(time);
+      m4.translate(this.worldMatrix, this.worldMatrix, [
+        position.x + this.orbitCenter[0], 
+        this.orbitCenter[1], 
+        position.z + this.orbitCenter[2]
+      ]);
+    } else if (this.orbitRadius > 0) {
+      // Fallback para órbita circular simples
       const orbitAngle = time * this.orbitSpeed;
       const orbitX = this.orbitCenter[0] + this.orbitRadius * Math.cos(orbitAngle);
       const orbitZ = this.orbitCenter[2] + this.orbitRadius * Math.sin(orbitAngle);
@@ -278,6 +395,15 @@ class CelestialBody {
         rotationSpeed: this.rotationSpeed,
         color: this.color,
         isEmissive: this.isEmissive
+      },
+      ellipticalOrbit: {
+        semiMajorAxis: this.ellipticalOrbit.semiMajorAxis,
+        semiMinorAxis: this.ellipticalOrbit.semiMinorAxis,
+        eccentricity: this.ellipticalOrbit.eccentricity,
+        perihelion: this.ellipticalOrbit.perihelion,
+        aphelion: this.ellipticalOrbit.aphelion,
+        inclination: this.ellipticalOrbit.inclination,
+        isElliptical: this.ellipticalOrbit.isElliptical
       }
     };
   }
@@ -297,6 +423,12 @@ class CelestialBody {
         orbitRadius: this.orbitRadius.toFixed(2),
         orbitSpeed: this.orbitSpeed.toFixed(4),
         rotationSpeed: this.rotationSpeed[1].toFixed(4)
+      },
+      ellipticalOrbit: {
+        semiMajorAxis: this.ellipticalOrbit.semiMajorAxis.toFixed(2),
+        semiMinorAxis: this.ellipticalOrbit.semiMinorAxis.toFixed(2),
+        eccentricity: this.ellipticalOrbit.eccentricity.toFixed(4),
+        isElliptical: this.ellipticalOrbit.isElliptical
       }
     });
   }
@@ -316,6 +448,26 @@ class CelestialBody {
     this.orbitCenter = center;
   }
   
+  // Novo método para configurar órbita elíptica manualmente
+  setEllipticalOrbit(semiMajorAxis, eccentricity, inclination = 0, speed = null, center = [0, 0, 0]) {
+    this.ellipticalOrbit = {
+      semiMajorAxis: semiMajorAxis,
+      semiMinorAxis: semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity),
+      eccentricity: eccentricity,
+      perihelion: semiMajorAxis * (1 - eccentricity),
+      aphelion: semiMajorAxis * (1 + eccentricity),
+      focalDistance: semiMajorAxis * eccentricity,
+      isElliptical: eccentricity > 0.001,
+      inclination: inclination
+    };
+    
+    if (speed !== null) {
+      this.orbitSpeed = speed;
+    }
+    
+    this.orbitCenter = center;
+  }
+  
   setColor(r, g, b, a = 1.0) {
     this.color = [r, g, b, a];
   }
@@ -332,6 +484,18 @@ class CelestialBody {
     const dy = pos1[1] - pos2[1];
     const dz = pos1[2] - pos2[2];
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  
+  // Método para obter a velocidade orbital atual (útil para efeitos visuais)
+  getCurrentOrbitalVelocity() {
+    if (!this.ellipticalOrbit.isElliptical) {
+      return this.orbitSpeed;
+    }
+    
+    // A velocidade orbital varia na elipse (mais rápida no periélio)
+    const currentDistance = this.getDistanceFrom({ getCurrentPosition: () => this.orbitCenter });
+    const velocityFactor = Math.sqrt(this.ellipticalOrbit.aphelion / currentDistance);
+    return this.orbitSpeed * velocityFactor;
   }
 }
 

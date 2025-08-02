@@ -218,27 +218,5 @@
     "numberOfMoons": 16,
     "ringSystem": "Yes",
     "globalMagneticField": "Yes"
-  },
-  "pluto": {
-    "mass": 0.013,
-    "diameter": 2376,
-    "density": 1850,
-    "gravity": 0.7,
-    "escapeVelocity": 1.3,
-    "rotationPeriod": -153.3,
-    "lengthOfDay": 153.3,
-    "distanceFromSun": 5906.4,
-    "perihelion": 4436.8,
-    "aphelion": 7375.9,
-    "orbitalPeriod": 90560,
-    "orbitalVelocity": 4.7,
-    "orbitalInclination": 17.2,
-    "orbitalEccentricity": 0.244,
-    "obliquityToOrbit": 119.5,
-    "meanTemperature": -225,
-    "surfacePressure": 0.00001,
-    "numberOfMoons": 5,
-    "ringSystem": "No",
-    "globalMagneticField": "Unknown"
   }
 }
