@@ -77,12 +77,12 @@ in vec3 v_position;
 
 uniform float u_time;
 
-// Função hash simples para ruído
+// Hash simples para ruído
 float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
 }
 
-// Ruído interpolado simples
+// Ruído interpolado
 float noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -93,7 +93,7 @@ float noise(vec2 p) {
     u.y);
 }
 
-// Fractal Brownian Motion para textura complexa
+// FBM — fractal brownian motion
 float fbm(vec2 p) {
   float total = 0.0;
   float amplitude = 0.5;
@@ -105,40 +105,39 @@ float fbm(vec2 p) {
   return total;
 }
 
+// Turbulência: fbm com distorção para manchas
+float turbulence(vec2 p) {
+  float t = fbm(p + fbm(p * 1.7));
+  t += fbm(p * 3.0 + u_time * 0.3);
+  return t * 0.5 + 0.5; // normaliza para [0,1]
+}
+
 void main() {
-  // Normaliza a posição xy para a esfera de raio 1
-  vec2 uv = normalize(v_position.xy);
-  float radius = length(v_position.xy);
+  // Coordenadas na esfera (escalar para controlar a escala das manchas)
+  vec2 uv = v_position.xy * 1.5;
+  float radius = clamp(length(uv), 0.0, 1.0);
 
-  // Ajusta radius para a faixa 0..1, limitando em 1
-  radius = clamp(radius, 0.0, 1.0);
+  // Pulso solar animado
+  float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 10.0);
 
-  // Pulsação suave
-  float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 15.0);
+  // Manchas turbulentas
+  float pattern = turbulence(uv);
 
-  // Textura turbulenta animada
-  float pattern = fbm(uv * 4.0 + vec2(u_time * 0.2, u_time * 0.1));
+  // Cores do Sol com manchas — do vermelho escuro ao amarelo quente
+  vec3 baseColor = mix(vec3(0.8, 0.2, 0.0), vec3(1.0, 0.9, 0.3), pattern);
 
-  // Gradiente de cor do Sol (vermelho -> amarelo), reduzindo intensidade para evitar saturar
-  vec3 baseColor = mix(vec3(1.0, 0.3, 0.0), vec3(1.0, 0.8, 0.3), pattern) * 0.6;
-
-  // Aplica pulso e fade radial com smoothstep para bordas suaves
+  // Aplica pulsação e fade radial suave
   vec3 color = baseColor * pulse * smoothstep(1.0, 0.6, 1.0 - radius);
 
-  // Glow central intenso e concentrado, mas suavizado para não saturar
+  // Glow central para brilho quente
   float coreGlow = pow(1.0 - radius, 6.0);
-  color += coreGlow * vec3(1.0, 0.6, 0.2) * 0.4;
+  color += coreGlow * vec3(1.0, 0.7, 0.2) * 0.4;
 
-  // Alpha suave para fade nas bordas
+  // Alpha para bordas suaves
   float alpha = smoothstep(1.0, 0.7, 1.0 - radius);
 
   outColor = vec4(color, alpha);
 }
-
-
-
-
-
 `;
 
 twgl.setDefaults({
