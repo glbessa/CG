@@ -16,6 +16,7 @@ class System {
           isEmissive: true,
           orbitRadius: 0,
           textureUrl: 'textures/2k_sun.jpg',
+          useTexture: false,
           color: [1.0, 1.0, 0.3, 1.0]
         },
         mercury: {
@@ -143,9 +144,13 @@ class System {
   }
 
   // Renderizar todos os corpos celestes
-  render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition) {
+  render(programInfo, sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition) {
     this.celestialBodies.forEach(body => {
-      body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
+      if (body.name === 'sun') {
+        body.render(sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
+      } else {
+        body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
+      }
     });
   }
 }

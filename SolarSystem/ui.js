@@ -1,6 +1,14 @@
 import camera from "./camera.js";
 import { canvas } from "./init.js";
 
+// Referência global para a timeline (será definida quando importada)
+let timeline = null;
+
+// Função para configurar a referência da timeline
+function setTimeline(timelineInstance) {
+  timeline = timelineInstance;
+}
+
 // Event listeners para controles
 canvas.addEventListener("mousedown", (e) => {
   camera.isDragging = true;
@@ -64,6 +72,42 @@ document.addEventListener("keydown", (e) => {
   if (e.code === 'Escape') {
     document.exitPointerLock();
   }
+  
+  // Controles da linha do tempo
+  if (timeline) {
+    // Spacebar para play/pause
+    if (e.code === 'Space' && e.target === document.body) {
+      e.preventDefault();
+      timeline.togglePlayPause();
+    }
+    
+    // R para resetar
+    if (e.code === 'KeyR') {
+      timeline.reset();
+    }
+    
+    // Setas esquerda/direita para navegar no tempo
+    if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      timeline.addTime(-30); // Voltar 30 dias
+    }
+    
+    if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      timeline.addTime(30); // Avançar 30 dias
+    }
+    
+    // Shift + setas para navegação mais rápida
+    if (e.shiftKey && e.code === 'ArrowLeft') {
+      e.preventDefault();
+      timeline.addTime(-365); // Voltar 1 ano
+    }
+    
+    if (e.shiftKey && e.code === 'ArrowRight') {
+      e.preventDefault();
+      timeline.addTime(365); // Avançar 1 ano
+    }
+  }
 });
 
 document.addEventListener("keyup", (e) => {
@@ -113,5 +157,6 @@ function updateSpeedIndicator() {
 export {
     handlePointerLockMouseMove,
     updateModeIndicator,
-    updateSpeedIndicator
+    updateSpeedIndicator,
+    setTimeline
 }

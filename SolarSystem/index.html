@@ -64,6 +64,94 @@
       font-size: 12px;
       z-index: 1000;
     }
+    
+    .timeline-container {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      max-width: 800px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 10px;
+      color: white;
+      z-index: 1000;
+      font-size: 14px;
+    }
+    
+    .timeline-header {
+      text-align: center;
+      margin-bottom: 15px;
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 10px;
+    }
+    
+    .timeline-slider {
+      flex: 1;
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+    
+    .timeline-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #4CAF50;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .timeline-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: #4CAF50;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .timeline-button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 0.3s;
+    }
+    
+    .timeline-button:hover {
+      background: #45a049;
+    }
+    
+    .timeline-button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    
+    .timeline-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #ccc;
+    }
+    
+    .current-date {
+      color: #FFD700;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -77,7 +165,15 @@
     <div class="section">
       <strong>Geral:</strong><br>
       <span class="key">C</span> Alternar modo câmera<br>
-      <span class="key">ESC</span> Liberar mouse (modo livre)
+      <span class="key">ESC</span> Liberar mouse (modo livre)<br>
+      <span class="key">Space</span> Play/Pause linha do tempo<br>
+      <span class="key">R</span> Resetar linha do tempo
+    </div>
+    
+    <div class="section">
+      <strong>Linha do Tempo:</strong><br>
+      <span class="key">←</span>/<span class="key">→</span> ±30 dias<br>
+      <span class="key">Shift</span>+<span class="key">←</span>/<span class="key">→</span> ±1 ano
     </div>
     
     <div class="section">
@@ -98,6 +194,32 @@
   
   <div class="speed-indicator" id="speed-indicator">
     Velocidade: 0.1
+  </div>
+
+  <!-- Linha do Tempo -->
+  <div class="timeline-container" id="timeline-container">
+    <div class="timeline-header">⏰ Linha do Tempo do Sistema Solar</div>
+    
+    <div class="timeline-controls">
+      <button class="timeline-button" id="timeline-play-pause">⏸️ Pausar</button>
+      <button class="timeline-button" id="timeline-reset">🔄 Resetar</button>
+      <input type="range" class="timeline-slider" id="timeline-slider" 
+             min="0" max="100" value="0" step="0.1">
+      <select class="timeline-button" id="timeline-speed">
+        <option value="0.1">0.1x</option>
+        <option value="0.5">0.5x</option>
+        <option value="1" selected>1x</option>
+        <option value="2">2x</option>
+        <option value="5">5x</option>
+        <option value="10">10x</option>
+      </select>
+    </div>
+    
+    <div class="timeline-info">
+      <span>1980</span>
+      <span class="current-date" id="current-date">1980-01-01</span>
+      <span>2020</span>
+    </div>
   </div>
 
   <script src="script.js" type="module"></script>

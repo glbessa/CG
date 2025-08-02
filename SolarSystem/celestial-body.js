@@ -67,7 +67,7 @@ class CelestialBody {
       return 1391000 / CONFIG.scale; // Sol fixo em 1391000 km
     }
     
-    return this.physicalData.diameter / CONFIG.scale;
+    //return this.physicalData.diameter / CONFIG.scale;
 
     const sunDiameter = 1391000; // km
     const logScale = Math.log(this.physicalData.diameter / 12756) * 0.3 + 0.8; // Terra como base
@@ -79,11 +79,10 @@ class CelestialBody {
     if (this.physicalData.distanceFromSun === 0) return 0;
     if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
 
-    return ((this.physicalData.perihelion + this.physicalData.aphelion) / 2) / CONFIG.scale;
+    //return ((this.physicalData.perihelion + this.physicalData.aphelion) / 2) / CONFIG.scale;
 
     // Escala para visualização com compressão logarítmica
-    const earthDistance = 149.6; // milhões de km
-    const relativeDistance = this.physicalData.distanceFromSun / earthDistance;
+    const relativeDistance = this.physicalData.distanceFromSun / (CONFIG.earthDistance * 1_000_000);
     
     // Usar escala logarítmica para distâncias muito grandes
     if (relativeDistance > 10) {
@@ -348,6 +347,7 @@ class CelestialBody {
       u_worldInverseTranspose: this.worldInverseTranspose,
       u_lightWorldPosition: lightPosition,
       u_viewWorldPosition: cameraPosition,
+      u_time: performance.now() * 0.001, // Tempo em segundos
       u_useTexture: this.useTexture,
       u_isEmissive: this.isEmissive,
     };
