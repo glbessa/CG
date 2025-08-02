@@ -79,167 +79,24 @@ twgl.setDefaults({
 
 // Criar programa com TWGL
 const programInfo = twgl.createProgramInfo(gl, [vertexShaderSource, fragmentShaderSource]);
+
+// Criar instância do sistema solar
+const system = new System({
+    celestialBodies: []
+});
+
+// Carregar dados do planetary-data.json
+async function initSolarSystem() {
+    await system.loadFromDataJson();
+    console.log('Sistema solar carregado com dados reais!');
     
-// Criar instâncias dos corpos celestes
-const sun = new CelestialBody({
-  name: "Sol",
-  radius: 2.0,
-  position: [0, 0, 0],
-  rotationSpeed: [0, 0.5, 0],
-  textureUrl: 'textures/2k_sun.jpg',
-  isEmissive: true,
-  color: [1.0, 0.8, 0.1, 1.0]
-});
-
-const mercury = new CelestialBody({
-  name: "Mercúrio",
-  radius: 0.4,
-  orbitRadius: 3.0,
-  orbitSpeed: 1.0,
-  orbitCenter: [0, 0, 0],
-  rotationSpeed: [0, 1.5, 0],
-  textureUrl: 'textures/2k_mercury.jpg',
-  isEmissive: false,
-  color: [0.5, 0.5, 0.5, 1.0]
-});
-
-const venus = new CelestialBody({
-  name: "Vênus",
-  radius: 0.9,
-  orbitRadius: 4.5,
-  orbitSpeed: 0.7,
-  orbitCenter: [0, 0, 0],
-  rotationSpeed: [0, 1.2, 0],
-  textureUrl: 'textures/2k_venus_atmosphere.jpg',
-  isEmissive: false,
-  color: [1.0, 0.8, 0.5, 1.0]
-});
-
-const earth = new CelestialBody({
-  name: "Terra",
-  radius: 1.0,
-  orbitRadius: 5.0,
-  orbitSpeed: 0.5,
-  orbitCenter: [0, 0, 0],
-  rotationSpeed: [0, 1.0, 0],
-  textureUrl: 'textures/2k_earth_daymap.jpg',
-  isEmissive: false,
-  color: [0.2, 0.6, 1.0, 1.0]
-});
-
-// Exemplo de como adicionar uma lua à Terra
-const moon = new CelestialBody({
-  name: "Lua",
-  radius: 0.3,
-  orbitRadius: 2.0,
-  orbitSpeed: 2.0,
-  orbitCenter: [0, 0, 0], // Será atualizado dinamicamente para orbitar a Terra
-  rotationSpeed: [0, 0.5, 0],
-  textureUrl: 'textures/2k_moon.jpg',
-  isEmissive: false,
-  useTexture: true
-});
-
-// Atualizar a órbita da lua para seguir a Terra
-const originalMoonUpdate = moon.update;
-moon.update = function(time) {
-  // Primeiro, obter a posição atual da Terra
-  const earthPosition = [
-    earth.orbitRadius * Math.cos(time * earth.orbitSpeed),
-    0,
-    earth.orbitRadius * Math.sin(time * earth.orbitSpeed)
-  ];
-  
-  // Atualizar o centro da órbita da lua para a posição da Terra
-  this.orbitCenter = earthPosition;
-  
-  // Chamar o método update original
-  originalMoonUpdate.call(this, time);
-};
-
-const mars = new CelestialBody({
-  name: "Marte",
-  radius: 0.8,
-  orbitRadius: 8.0,
-  orbitSpeed: 0.3,
-  orbitCenter: [0, 0, 0],
-  rotationSpeed: [0, 0.9, 0],
-  color: [0.8, 0.3, 0.1, 1.0],
-  isEmissive: false,
-  textureUrl: 'textures/2k_mars.jpg',
-  useTexture: true
-});
-
-// Exemplo: Adicionar Júpiter
-const jupiter = new CelestialBody({
-  name: "Júpiter",
-  radius: 1.8,
-  orbitRadius: 12.0,
-  orbitSpeed: 0.15,
-  orbitCenter: [0, 0, 0],
-  rotationSpeed: [0, 2.0, 0],
-  color: [0.9, 0.7, 0.4, 1.0],
-  isEmissive: false,
-  useTexture: false
-});
-
-const saturn = new CelestialBody({
-    name: "Saturno",
-    radius: 1.5,
-    orbitRadius: 8.0,
-    orbitSpeed: 0.3,
-    orbitCenter: [0, 0, 0],
-    rotationSpeed: [0, 0.8, 0],
-    textureUrl: 'textures/2k_saturn.jpg',
-    isEmissive: false,
-    useTexture: true,
-    color: [0.9, 0.8, 0.6, 1.0]
-});
-
-const uranus = new CelestialBody({
-    name: "Urano",
-    radius: 1.2,
-    orbitRadius: 10.0,
-    orbitSpeed: 0.2,
-    orbitCenter: [0, 0, 0],
-    rotationSpeed: [0, 0.6, 0],
-    textureUrl: 'textures/2k_uranus.jpg',
-    isEmissive: false,
-    useTexture: true,
-    color: [0.5, 0.7, 1.0, 1.0]
-});
-
-const neptune = new CelestialBody({
-    name: "Netuno",
-    radius: 1.1,
-    orbitRadius: 12.0,
-    orbitSpeed: 0.1,
-    orbitCenter: [0, 0, 0],
-    rotationSpeed: [0, 0.4, 0],
-    textureUrl: 'textures/2k_neptune.jpg',
-    isEmissive: false,
-    useTexture: true,
-    color: [0.3, 0.5, 1.0, 1.0]
-});
+    // Iniciar o loop de renderização
+    requestAnimationFrame(render);
+}
 
 // Matrizes
 const projectionMatrix = m4.create();
 const viewMatrix = m4.create();
-
-const system = new System({
-    celestialBodies: [
-        sun, 
-        mercury,
-        venus,
-        earth,
-        moon,
-        mars,
-        jupiter,
-        saturn,
-        uranus,
-        neptune,
-    ]
-});
 
 function render(time) {
     time *= 0.001; // ms → s
@@ -269,13 +126,12 @@ function render(time) {
     // Usar o programa de shader
     gl.useProgram(programInfo.program);
     
-    // Atualizar e renderizar todos os corpos celestes
-    system.celestialBodies.forEach(body => {
-        body.update(time);
-        body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
-    });
+    // Atualizar e renderizar usando o sistema
+    system.update(time);
+    system.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
 
     requestAnimationFrame(render);
 }
 
-requestAnimationFrame(render);
+// Inicializar o sistema solar
+initSolarSystem();
