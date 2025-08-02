@@ -113,23 +113,37 @@ float turbulence(vec2 p) {
 }
 
 void main() {
-  // Coordenadas na esfera (escalar para controlar a escala das manchas)
   vec2 uv = v_position.xy * 1.5;
   float radius = clamp(length(uv), 0.0, 1.0);
 
-  // Pulso solar animado
+  // Distorsão para quebrar linearidade no equador
+  float angle = atan(uv.y, uv.x);
+  float distortionStrength = 0.2;
+
+  // Offset usando seno/cosseno e ruído animado
+  vec2 distortion = vec2(
+    sin(angle * 10.0 + u_time * 2.0),
+    cos(angle * 15.0 + u_time * 2.5)
+  ) * distortionStrength;
+
+  // Também um ruído adicional para a distorção ficar mais irregular
+  distortion += (noise(uv * 5.0 + u_time) - 0.5) * 0.1;
+
+  vec2 distortedUV = uv + distortion;
+
+  // Pulsação animada
   float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 10.0);
 
-  // Manchas turbulentas
-  float pattern = turbulence(uv);
+  // Manchas turbulentas com UV distorcido
+  float pattern = turbulence(distortedUV);
 
-  // Cores do Sol com manchas — do vermelho escuro ao amarelo quente
+  // Cores do Sol do vermelho escuro ao amarelo quente
   vec3 baseColor = mix(vec3(0.8, 0.2, 0.0), vec3(1.0, 0.9, 0.3), pattern);
 
-  // Aplica pulsação e fade radial suave
+  // Aplicar pulso e fade radial suave
   vec3 color = baseColor * pulse * smoothstep(1.0, 0.6, 1.0 - radius);
 
-  // Glow central para brilho quente
+  // Glow central quente
   float coreGlow = pow(1.0 - radius, 6.0);
   color += coreGlow * vec3(1.0, 0.7, 0.2) * 0.4;
 
