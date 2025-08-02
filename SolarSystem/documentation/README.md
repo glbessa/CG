@@ -21,6 +21,7 @@ SpinningCube/
 ├── documentation/         # Documentação técnica
 │   ├── README.md          # Esta documentação
 │   └── CelestialBody.md   # Documentação da classe CelestialBody
+|   └── System.md          # Documentação da classe System
 └── textures/              # Texturas para os objetos
 ```
 
