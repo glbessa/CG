@@ -41,6 +41,10 @@ uniform vec3 u_viewWorldPosition;
 
 out vec4 outColor;
 
+float sphereSDF(vec3 p, vec3 center, float radius) {
+    return length(p - center) - radius;
+}
+
 void main() {
   vec3 normal = normalize(v_normal);
   vec3 surfaceToLight = normalize(u_lightWorldPosition - v_position);
