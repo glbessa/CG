@@ -132,7 +132,7 @@ void main() {
   vec2 distortedUV = uv + distortion;
 
   // Pulsação animada
-  float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 10.0);
+  //float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 10.0);
 
   // Manchas turbulentas com UV distorcido
   float pattern = turbulence(distortedUV);
@@ -141,7 +141,8 @@ void main() {
   vec3 baseColor = mix(vec3(0.8, 0.2, 0.0), vec3(1.0, 0.9, 0.3), pattern);
 
   // Aplicar pulso e fade radial suave
-  vec3 color = baseColor * pulse * smoothstep(1.0, 0.6, 1.0 - radius);
+  //vec3 color = baseColor * pulse * smoothstep(1.0, 0.6, 1.0 - radius);
+  vec3 color = baseColor * smoothstep(1.0, 0.6, 1.0 - radius);
 
   // Glow central quente
   float coreGlow = pow(1.0 - radius, 6.0);
