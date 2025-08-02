@@ -71,39 +71,71 @@ twgl.setDefaults({
 // Criar programa com TWGL
 const programInfo = twgl.createProgramInfo(gl, [vertexShaderSource, fragmentShaderSource]);
 
-let theta = 0; // ângulo horizontal (radians)
-let phi = 0.5; // ângulo vertical (radians)
-let radius = 10; // distância da câmera
-
-let isDragging = false;
-let lastX = 0;
-let lastY = 0;
+// Estado da câmera organizado
+const camera = {
+  theta: 0,        // ângulo horizontal (radians)
+  phi: 0.5,        // ângulo vertical (radians)
+  radius: 10,      // distância da câmera
+  fov: Math.PI / 4, // campo de visão
+  near: 0.1,       // plano próximo
+  far: 100,        // plano distante
+  
+  // Controles de mouse
+  isDragging: false,
+  lastX: 0,
+  lastY: 0,
+  
+  // Limites
+  minRadius: 2.0,
+  maxRadius: 50.0,
+  minPhi: 0.01,
+  maxPhi: Math.PI - 0.01,
+  
+  // Métodos auxiliares
+  getPosition() {
+    const x = this.radius * Math.sin(this.phi) * Math.sin(this.theta);
+    const y = this.radius * Math.cos(this.phi);
+    const z = this.radius * Math.sin(this.phi) * Math.cos(this.theta);
+    return [x, y, z];
+  },
+  
+  updateProjectionMatrix(projectionMatrix, aspect) {
+    const m4 = glMatrix.mat4;
+    m4.perspective(projectionMatrix, this.fov, aspect, this.near, this.far);
+  },
+  
+  updateViewMatrix(viewMatrix, target = [0, 0, 0], up = [0, 1, 0]) {
+    const m4 = glMatrix.mat4;
+    const eye = this.getPosition();
+    m4.lookAt(viewMatrix, eye, target, up);
+  }
+};
 
 canvas.addEventListener("mousedown", (e) => {
-  isDragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
+  camera.isDragging = true;
+  camera.lastX = e.clientX;
+  camera.lastY = e.clientY;
 });
 
 canvas.addEventListener("mouseup", () => {
-  isDragging = false;
+  camera.isDragging = false;
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  if (!isDragging) return;
-  const deltaX = e.clientX - lastX;
-  const deltaY = e.clientY - lastY;
-  lastX = e.clientX;
-  lastY = e.clientY;
+  if (!camera.isDragging) return;
+  const deltaX = e.clientX - camera.lastX;
+  const deltaY = e.clientY - camera.lastY;
+  camera.lastX = e.clientX;
+  camera.lastY = e.clientY;
 
-  theta -= deltaX * 0.01;
-  phi += deltaY * 0.01;
-  phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi)); // limitar phi
+  camera.theta -= deltaX * 0.01;
+  camera.phi += deltaY * 0.01;
+  camera.phi = Math.max(camera.minPhi, Math.min(camera.maxPhi, camera.phi));
 });
 
 canvas.addEventListener("wheel", (e) => {
-  radius += e.deltaY * 0.01;
-  radius = Math.max(2.0, Math.min(50.0, radius));
+  camera.radius += e.deltaY * 0.01;
+  camera.radius = Math.max(camera.minRadius, Math.min(camera.maxRadius, camera.radius));
 });
 
 // Criar geometria básica
@@ -139,19 +171,14 @@ function render(time) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Câmera
-    const fov = Math.PI / 4;
     const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    m4.perspective(projectionMatrix, fov, aspect, 0.1, 100);
-    // Converte coordenadas esféricas para posição da câmera
-    const x = radius * Math.sin(phi) * Math.sin(theta);
-    const y = radius * Math.cos(phi);
-    const z = radius * Math.sin(phi) * Math.cos(theta);
-
-    const eye = [x, y, z];
+    camera.updateProjectionMatrix(projectionMatrix, aspect);
+    camera.updateViewMatrix(viewMatrix);
+    
+    const eye = camera.getPosition();
     const target = [0, 0, 0];
     const up = [0, 1, 0];
 
-    m4.lookAt(viewMatrix, eye, target, up);
     m4.multiply(worldViewProjectionMatrix, projectionMatrix, viewMatrix);
 
 
@@ -172,7 +199,7 @@ function render(time) {
     const sunWVP = m4.create();
     m4.multiply(sunWVP, viewProjection, sunMatrix);
 
-    const cameraPosition = [0, 0, 10];
+    const cameraPosition = camera.getPosition();
     const lightPosition = [0, 0, 0]; // O Sol no centro
 
     // Desenho
