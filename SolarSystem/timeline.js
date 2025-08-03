@@ -12,58 +12,32 @@ class Timeline {
     // Eventos astronômicos importantes para destacar na timeline
     this.astronomicalEvents = this.generateAstronomicalEvents();
     
-    // Elementos DOM
-    this.slider = document.getElementById('timeline-slider');
-    this.playPauseBtn = document.getElementById('timeline-play-pause');
-    this.resetBtn = document.getElementById('timeline-reset');
-    this.speedSelect = document.getElementById('timeline-speed');
-    this.currentDateDisplay = document.getElementById('current-date');
+    // Callbacks para atualização da UI (serão definidos pelo ui.js)
+    this.onUpdateDisplay = null;
+    this.onPlayPauseChange = null;
+    this.onEventUpdate = null;
+  }
+  
+  // Métodos para configurar callbacks da UI
+  setUICallbacks(callbacks) {
+    this.onUpdateDisplay = callbacks.onUpdateDisplay;
+    this.onPlayPauseChange = callbacks.onPlayPauseChange;
+    this.onEventUpdate = callbacks.onEventUpdate;
     
-    this.initEventListeners();
+    // Inicializar display
     this.updateDisplay();
     this.highlightNearbyEvents();
   }
   
-  initEventListeners() {
-    // Play/Pause button
-    this.playPauseBtn.addEventListener('click', () => {
-      this.togglePlayPause();
-    });
-    
-    // Reset button
-    this.resetBtn.addEventListener('click', () => {
-      this.reset();
-    });
-    
-    // Speed selector
-    this.speedSelect.addEventListener('change', (e) => {
-      this.timeSpeed = parseFloat(e.target.value);
-    });
-    
-    // Timeline slider
-    this.slider.addEventListener('input', (e) => {
-      const percentage = parseFloat(e.target.value) / 100;
-      this.setTimeByPercentage(percentage);
-    });
-    
-    // Prevent slider from affecting camera when dragging
-    this.slider.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-    });
-    
-    this.slider.addEventListener('mousemove', (e) => {
-      e.stopPropagation();
-    });
-  }
-  
   togglePlayPause() {
     this.isPlaying = !this.isPlaying;
-    this.playPauseBtn.textContent = this.isPlaying ? '⏸️ Pausar' : '▶️ Reproduzir';
+    if (this.onPlayPauseChange) {
+      this.onPlayPauseChange(this.isPlaying);
+    }
   }
   
   reset() {
     this.currentDate = new Date(this.startDate);
-    this.slider.value = 0;
     this.updateDisplay();
   }
   
@@ -72,6 +46,10 @@ class Timeline {
     const newTime = this.startDate.getTime() + (totalDuration * percentage);
     this.currentDate = new Date(newTime);
     this.updateDisplay();
+  }
+  
+  setTimeSpeed(speed) {
+    this.timeSpeed = speed;
   }
   
   getCurrentTimePercentage() {
@@ -91,7 +69,9 @@ class Timeline {
     if (this.currentDate.getTime() > this.endDate.getTime()) {
       this.currentDate = new Date(this.endDate);
       this.isPlaying = false;
-      this.playPauseBtn.textContent = '▶️ Reproduzir';
+      if (this.onPlayPauseChange) {
+        this.onPlayPauseChange(this.isPlaying);
+      }
     }
     
     // Verificar se voltamos ao início (caso o tempo seja revertido)
@@ -104,12 +84,14 @@ class Timeline {
   }
   
   updateDisplay() {
-    // Atualizar slider
-    const percentage = this.getCurrentTimePercentage();
-    this.slider.value = percentage;
-    
-    // Atualizar display da data atual
-    this.currentDateDisplay.textContent = this.formatDate(this.currentDate);
+    if (this.onUpdateDisplay) {
+      const displayData = {
+        percentage: this.getCurrentTimePercentage(),
+        formattedDate: this.formatDate(this.currentDate),
+        timeInfo: this.getTimeInfo()
+      };
+      this.onUpdateDisplay(displayData);
+    }
   }
   
   formatDate(date) {
@@ -203,55 +185,21 @@ class Timeline {
       return timeDiff <= thirtyDaysInMs;
     });
     
-    // Atualizar a interface para mostrar eventos próximos
-    this.updateEventDisplay(nearbyEvents);
+    if (this.onEventUpdate) {
+      this.onEventUpdate(nearbyEvents, this.currentDate);
+    }
   }
   
-  // Atualizar display de eventos
-  updateEventDisplay(nearbyEvents) {
-    // Remover indicadores de eventos antigos
-    const existingIndicators = document.querySelectorAll('.event-indicator');
-    existingIndicators.forEach(indicator => indicator.remove());
+  // Método para obter dados de evento formatados
+  getEventMessage(event, currentDate) {
+    const daysDiff = Math.round((event.date.getTime() - currentDate.getTime()) / (24 * 60 * 60 * 1000));
     
-    if (nearbyEvents.length > 0) {
-      // Mostrar primeiro evento próximo
-      const event = nearbyEvents[0];
-      const daysDiff = Math.round((event.date.getTime() - this.currentDate.getTime()) / (24 * 60 * 60 * 1000));
-      
-      let message = '';
-      if (daysDiff === 0) {
-        message = `🌟 HOJE: ${event.name}`;
-      } else if (daysDiff > 0) {
-        message = `🔮 Em ${daysDiff} dias: ${event.name}`;
-      } else {
-        message = `📅 Há ${Math.abs(daysDiff)} dias: ${event.name}`;
-      }
-      
-      // Criar indicador de evento
-      const indicator = document.createElement('div');
-      indicator.className = 'event-indicator';
-      indicator.textContent = message;
-      indicator.style.cssText = `
-        position: absolute;
-        top: -35px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(255, 215, 0, 0.9);
-        color: black;
-        padding: 5px 10px;
-        border-radius: 15px;
-        font-size: 11px;
-        font-weight: bold;
-        white-space: nowrap;
-        z-index: 1001;
-        pointer-events: none;
-      `;
-      
-      const timelineContainer = document.getElementById('timeline-container');
-      if (timelineContainer) {
-        //timelineContainer.style.position = 'relative';
-        timelineContainer.appendChild(indicator);
-      }
+    if (daysDiff === 0) {
+      return `🌟 HOJE: ${event.name}`;
+    } else if (daysDiff > 0) {
+      return `🔮 Em ${daysDiff} dias: ${event.name}`;
+    } else {
+      return `📅 Há ${Math.abs(daysDiff)} dias: ${event.name}`;
     }
   }
 }

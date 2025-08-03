@@ -5,7 +5,7 @@ const camera = {
   // Modo orbital
   theta: 0,        // ângulo horizontal (radians)
   phi: 0.5,        // ângulo vertical (radians)
-  radius: 10,      // distância da câmera
+  radius: 100,      // distância da câmera
   
   // Modo livre
   position: [0, 5, 10],  // posição da câmera no modo livre

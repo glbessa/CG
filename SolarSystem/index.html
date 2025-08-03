@@ -65,6 +65,40 @@
       z-index: 1000;
     }
     
+    .camera-info {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      color: white;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 5px;
+      font-size: 12px;
+      min-width: 200px;
+      z-index: 1000;
+    }
+    
+    .camera-info h4 {
+      margin: 0 0 10px 0;
+      color: #4CAF50;
+      font-size: 14px;
+    }
+    
+    .camera-info .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+    
+    .camera-info .label {
+      color: #ccc;
+    }
+    
+    .camera-info .value {
+      color: white;
+      font-weight: bold;
+    }
+    
     .timeline-container {
       position: absolute;
       bottom: 10px;
@@ -192,9 +226,60 @@
     </div>
   </div>
   
+    </div>
+  
+  <!-- Informações da Câmera -->
+  <div class="camera-info" id="camera-info">
+    <h4>📹 Informações da Câmera</h4>
+    <div class="info-row">
+      <span class="label">Modo:</span>
+      <span class="value" id="camera-mode">Orbital</span>
+    </div>
+    <div class="info-row">
+      <span class="label">Posição X:</span>
+      <span class="value" id="camera-pos-x">0.00</span>
+    </div>
+    <div class="info-row">
+      <span class="label">Posição Y:</span>
+      <span class="value" id="camera-pos-y">0.00</span>
+    </div>
+    <div class="info-row">
+      <span class="label">Posição Z:</span>
+      <span class="value" id="camera-pos-z">0.00</span>
+    </div>
+    <div id="orbital-info">
+      <div class="info-row">
+        <span class="label">Raio:</span>
+        <span class="value" id="camera-radius">100.00</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Theta (°):</span>
+        <span class="value" id="camera-theta">0.00</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Phi (°):</span>
+        <span class="value" id="camera-phi">28.65</span>
+      </div>
+    </div>
+    <div id="free-info" style="display: none;">
+      <div class="info-row">
+        <span class="label">Yaw (°):</span>
+        <span class="value" id="camera-yaw">0.00</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Pitch (°):</span>
+        <span class="value" id="camera-pitch">0.00</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Velocidade:</span>
+        <span class="value" id="camera-speed">0.10</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Indicador de Velocidade -->
   <div class="speed-indicator" id="speed-indicator">
     Velocidade: 0.1
-  </div>
 
   <!-- Linha do Tempo -->
   <div class="timeline-container" id="timeline-container">
