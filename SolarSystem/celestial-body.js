@@ -43,7 +43,12 @@ class CelestialBody {
     
     this.position = options.position || [0, 0, 0];
     this.rotation = options.rotation || [0, 0, 0];
-    this.orbitCenter = options.orbitCenter || [0, 0, 0];
+    
+    // Suporte para centro orbital como posição ou como objeto CelestialBody
+    this.orbitParent = null;
+    this.orbitCenter = [0, 0, 0];
+    this.setOrbitCenter(options.orbitCenter || options.orbitParent || [0, 0, 0]);
+    
     this.textureUrl = options.textureUrl || null;
     this.isEmissive = options.isEmissive || false;
     this.useTexture = options.useTexture !== undefined ? options.useTexture : !!this.textureUrl;
@@ -253,17 +258,19 @@ class CelestialBody {
     // Aplicar órbita elíptica se houver
     if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
       const position = this.calculateEllipticalPosition(time);
+      const currentOrbitCenter = this.getCurrentOrbitCenter();
       m4.translate(this.worldMatrix, this.worldMatrix, [
-        position.x + this.orbitCenter[0], 
-        this.orbitCenter[1], 
-        position.z + this.orbitCenter[2]
+        position.x + currentOrbitCenter[0], 
+        currentOrbitCenter[1], 
+        position.z + currentOrbitCenter[2]
       ]);
     } else if (this.orbitRadius > 0) {
       // Fallback para órbita circular simples
       const orbitAngle = time * this.orbitSpeed;
-      const orbitX = this.orbitCenter[0] + this.orbitRadius * Math.cos(orbitAngle);
-      const orbitZ = this.orbitCenter[2] + this.orbitRadius * Math.sin(orbitAngle);
-      m4.translate(this.worldMatrix, this.worldMatrix, [orbitX, this.orbitCenter[1], orbitZ]);
+      const currentOrbitCenter = this.getCurrentOrbitCenter();
+      const orbitX = currentOrbitCenter[0] + this.orbitRadius * Math.cos(orbitAngle);
+      const orbitZ = currentOrbitCenter[2] + this.orbitRadius * Math.sin(orbitAngle);
+      m4.translate(this.worldMatrix, this.worldMatrix, [orbitX, currentOrbitCenter[1], orbitZ]);
     } else {
       // Posição estática
       m4.translate(this.worldMatrix, this.worldMatrix, this.position);
@@ -391,7 +398,29 @@ class CelestialBody {
   setOrbit(radius, speed, center = [0, 0, 0]) {
     this.orbitRadius = radius;
     this.orbitSpeed = speed;
-    this.orbitCenter = center;
+    this.setOrbitCenter(center);
+  }
+  
+  // Método para definir o centro orbital (posição ou objeto CelestialBody)
+  setOrbitCenter(center) {
+    if (center instanceof CelestialBody) {
+      this.orbitParent = center;
+      this.orbitCenter = [0, 0, 0]; // Será atualizado dinamicamente
+    } else if (Array.isArray(center) && center.length >= 3) {
+      this.orbitParent = null;
+      this.orbitCenter = [center[0], center[1], center[2]];
+    } else {
+      this.orbitParent = null;
+      this.orbitCenter = [0, 0, 0];
+    }
+  }
+  
+  // Método para obter a posição atual do centro orbital
+  getCurrentOrbitCenter() {
+    if (this.orbitParent) {
+      return this.orbitParent.getCurrentPosition();
+    }
+    return this.orbitCenter;
   }
   
   // Novo método para configurar órbita elíptica manualmente
@@ -411,7 +440,7 @@ class CelestialBody {
       this.orbitSpeed = speed;
     }
     
-    this.orbitCenter = center;
+    this.setOrbitCenter(center);
   }
   
   setColor(r, g, b, a = 1.0) {
@@ -439,9 +468,39 @@ class CelestialBody {
     }
     
     // A velocidade orbital varia na elipse (mais rápida no periélio)
-    const currentDistance = this.getDistanceFrom({ getCurrentPosition: () => this.orbitCenter });
+    const currentOrbitCenter = this.getCurrentOrbitCenter();
+    const currentDistance = this.getDistanceFrom({ getCurrentPosition: () => currentOrbitCenter });
     const velocityFactor = Math.sqrt(this.ellipticalOrbit.aphelion / currentDistance);
     return this.orbitSpeed * velocityFactor;
+  }
+  
+  // Métodos de conveniência para trabalhar com objetos pai
+  
+  // Define um objeto CelestialBody como pai orbital
+  setOrbitParent(parentBody, orbitRadius = null, orbitSpeed = null) {
+    this.setOrbitCenter(parentBody);
+    if (orbitRadius !== null) this.orbitRadius = orbitRadius;
+    if (orbitSpeed !== null) this.orbitSpeed = orbitSpeed;
+  }
+  
+  // Verifica se este corpo está orbitando outro objeto
+  hasOrbitParent() {
+    return this.orbitParent !== null;
+  }
+  
+  // Obtém o objeto pai (se houver)
+  getOrbitParent() {
+    return this.orbitParent;
+  }
+  
+  // Calcula a distância atual do centro orbital
+  getDistanceFromOrbitCenter() {
+    const currentOrbitCenter = this.getCurrentOrbitCenter();
+    const currentPosition = this.getCurrentPosition();
+    const dx = currentPosition[0] - currentOrbitCenter[0];
+    const dy = currentPosition[1] - currentOrbitCenter[1];
+    const dz = currentPosition[2] - currentOrbitCenter[2];
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 }
 
