@@ -7,21 +7,8 @@ import CelestialBody from "./celestial-body.js";
 import System from "./system.js";
 import camera from "./camera.js";
 import Timeline from "./timeline.js";
-import { updateModeIndicator, updateSpeedIndicator, setTimeline } from "./ui.js";
+import { updateModeIndicator, updateSpeedIndicator, setTimeline, populateCelestialBodiesList, sortCelestialBodiesByDistance } from "./ui.js";
 import { loadAsset } from "./utils.js";
-
-/*
- * EXEMPLO DE USO DOS FATORES DE ESCALA:
- * 
- * Para ajustar dinamicamente os tamanhos dos corpos celestes:
- * CelestialBody.updateBodyScale(5000, solarSystem.getCelestialBodies());
- * 
- * Para ajustar as distâncias orbitais:
- * CelestialBody.updateOrbitScale(50000, solarSystem.getCelestialBodies());
- * 
- * Para obter informações atuais de escala:
- * console.log(CelestialBody.getScaleInfo());
- */
 
 const vertexShaderSource = await loadAsset('./shaders/general.vert');
 const fragmentShaderSource = await loadAsset('./shaders/general.frag');
@@ -68,31 +55,16 @@ async function loadTemporalDataForBody(body) {
     const bodyNameLower = body.name.toLowerCase();
     const filePath = temporalDataFiles[bodyNameLower];
     
-    if (filePath) {
-        try {
-            console.log(`Carregando dados temporais para ${body.name}...`);
-            const success = await body.loadTemporalData(filePath);
-            
-            if (success) {
-                console.log(`✅ Dados temporais carregados para ${body.name}`);
-                
-                // Configurar parâmetros temporais
-                body.setStartTime(1965, 1, 0); // Data inicial dos dados
-                body.setTimeScale(365.25 * 24); // 1 hora simulação = 1 ano real
-                body.setInterpolation(true);
-                body.setUseTemporalData(true);
-                
-                // Log informações sobre os dados carregados
-                body.logTemporalDataInfo();
-            } else {
-                console.log(`⚠️ Falha ao carregar dados temporais para ${body.name} - usando cálculos matemáticos`);
-            }
-        } catch (error) {
-            console.warn(`⚠️ Erro ao carregar dados temporais para ${body.name}:`, error.message);
-            console.log(`Usando cálculos matemáticos para ${body.name}`);
-        }
-    } else {
-        console.log(`ℹ️ Nenhum arquivo de dados temporais encontrado para ${body.name} - usando cálculos matemáticos`);
+    if (!filePath) {
+        console.warn(`⚠️ Dados temporais não encontrados para ${body.name}`);
+        return;
+    }
+    
+    try {
+        await body.loadTemporalData(filePath);
+    } catch (error) {
+        console.warn(`⚠️ Erro ao carregar dados temporais para ${body.name}:`, error.message);
+        console.log(`Usando cálculos matemáticos para ${body.name}`);
     }
 }
 
@@ -106,6 +78,11 @@ async function initSolarSystem() {
         console.log('Iniciando carregamento de dados temporais...');
         await loadTemporalDataForAllBodies();
         console.log('Carregamento de dados temporais concluído!');
+        
+        // Popular a lista de corpos celestes na interface
+        populateCelestialBodiesList(solarSystem);
+        sortCelestialBodiesByDistance(solarSystem);
+        console.log('Lista de corpos celestes populada na interface!');
         
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -159,6 +136,8 @@ function render(time) {
     solarSystem.celestialBodies.forEach(body => {
       if (body.name === 'sun') {
         body.render(sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
+      } else if (body.name === 'comet_halley') {
+        body.render(cometProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
       } else {
         body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
       }

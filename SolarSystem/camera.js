@@ -1,16 +1,36 @@
 import { canvas } from './init.js';
 import * as glMatrix from '../static/gl-matrix/esm/index.js';
 
+/**
+ * Sistema de Câmera para Simulação Solar
+ * 
+ * Coordenadas Heliocêntricas (HGI - Heliographic Inertial):
+ * - Origem: Centro do Sol
+ * - Eixo Y: Polo Norte Solar (direção do eixo de rotação solar)
+ * - Eixo X/Z: Plano eclíptico
+ * 
+ * Posições astronômicas especiais:
+ * - Polo Norte Solar: phi ≈ 0 (Y positivo)
+ * - Polo Sul Solar: phi ≈ π (Y negativo)
+ * - Plano Eclíptico: phi = π/2 (Y = 0)
+ * 
+ * Métodos de posicionamento: 
+ * - setToNorthPole(): Visão do polo norte solar
+ * - setSouthPole(): Visão do polo sul solar
+ * - setEclipticView(): Visão no plano eclíptico
+ * - setInclinedView(): Visão com inclinação personalizada
+ */
+
 const camera = {
   // Modo orbital
   theta: 0,        // ângulo horizontal (radians)
-  phi: 0.5,        // ângulo vertical (radians)
+  phi: 0.01,       // ângulo vertical (radians) - polo norte solar (quase 0)
   radius: 100,      // distância da câmera
   
   // Modo livre
-  position: [0, 5, 10],  // posição da câmera no modo livre
+  position: [0, 100, 0],  // posição da câmera no modo livre - polo norte solar
   yaw: 0,          // rotação horizontal (radians)
-  pitch: 0,        // rotação vertical (radians)
+  pitch: -Math.PI/2,      // rotação vertical (radians) - olhando para baixo do polo norte
   
   // Configurações gerais
   fov: Math.PI / 4, // campo de visão
@@ -25,6 +45,8 @@ const camera = {
   lastX: 0,
   lastY: 0,
   keys: {},        // teclas pressionadas
+  target: [0, 0, 0], // alvo da câmera (usado no modo orbital)
+  lookAt: null,    // direção de olhar (usado no modo livre)
   
   // Limites para modo orbital
   minRadius: 2.0,
@@ -35,9 +57,9 @@ const camera = {
   // Métodos auxiliares
   getPosition() {
     if (this.mode === 'orbital') {
-      const x = this.radius * Math.sin(this.phi) * Math.sin(this.theta);
-      const y = this.radius * Math.cos(this.phi);
-      const z = this.radius * Math.sin(this.phi) * Math.cos(this.theta);
+      const x = this.radius * Math.sin(this.phi) * Math.sin(this.theta) + this.target[0];
+      const y = this.radius * Math.cos(this.phi) + this.target[1];
+      const z = this.radius * Math.sin(this.phi) * Math.cos(this.theta) + this.target[2];
       return [x, y, z];
     } else {
       return [...this.position];
@@ -46,8 +68,11 @@ const camera = {
   
   getTarget() {
     if (this.mode === 'orbital') {
-      return [0, 0, 0]; // sempre olha para o centro
+      return [...this.target]; // olha para o alvo definido
     } else {
+      if (this.lookAt) {
+        return [...this.lookAt]; // olha para uma posição específica
+      }
       // Calcula direção baseada em yaw e pitch
       const x = Math.cos(this.pitch) * Math.sin(this.yaw);
       const y = Math.sin(this.pitch);
@@ -143,6 +168,134 @@ const camera = {
       this.theta = Math.atan2(dx, dz);
       this.phi = Math.acos(dy / this.radius);
     }
+  },
+  
+  // Posicionamentos astronômicos específicos
+  setToNorthPole(distance = 100) {
+    this.mode = 'orbital';
+    this.theta = 0;                    // qualquer ângulo horizontal
+    this.phi = 0.01;                   // quase no polo norte (evita singularidade)
+    this.radius = distance;
+    this.target = [0, 0, 0];          // olhando para o Sol
+    console.log(`Câmera posicionada no polo norte solar (distância: ${distance})`);
+  },
+  
+  setSouthPole(distance = 100) {
+    this.mode = 'orbital';
+    this.theta = 0;                    // qualquer ângulo horizontal
+    this.phi = Math.PI - 0.01;         // quase no polo sul (evita singularidade)
+    this.radius = distance;
+    this.target = [0, 0, 0];          // olhando para o Sol
+    console.log(`Câmera posicionada no polo sul solar (distância: ${distance})`);
+  },
+  
+  setEclipticView(distance = 100, angle = 0) {
+    this.mode = 'orbital';
+    this.theta = angle;                // ângulo no plano eclíptico
+    this.phi = Math.PI / 2;           // no plano eclíptico (Y = 0)
+    this.radius = distance;
+    this.target = [0, 0, 0];          // olhando para o Sol
+    console.log(`Câmera posicionada no plano eclíptico (ângulo: ${(angle * 180 / Math.PI).toFixed(1)}°, distância: ${distance})`);
+  },
+  
+  setInclinedView(inclination = 30, azimuth = 0, distance = 100) {
+    this.mode = 'orbital';
+    this.theta = azimuth * Math.PI / 180;                    // ângulo horizontal em graus
+    this.phi = (90 - inclination) * Math.PI / 180;          // ângulo vertical em graus (90° - inclinação)
+    this.radius = distance;
+    this.target = [0, 0, 0];
+    console.log(`Câmera posicionada com inclinação ${inclination}° e azimute ${azimuth}° (distância: ${distance})`);
+  },
+  
+  followCelestialBody(body, distance = 50, height = 20) {
+    if (!body || !body.getCurrentPosition) {
+      console.warn('Corpo celeste inválido para seguir');
+      return;
+    }
+    
+    const bodyPos = body.getCurrentPosition();
+    this.mode = 'free';
+    
+    // Posicionar câmera atrás e acima do corpo
+    this.position = [
+      bodyPos[0] - distance,  // atrás do corpo
+      bodyPos[1] + height,    // acima do corpo
+      bodyPos[2]
+    ];
+    
+    // Olhar para o corpo
+    this.lookAt = [...bodyPos];
+    console.log(`Câmera seguindo ${body.name || 'corpo celeste'}`);
+  },
+  
+  setToHeliocentricCoords(rad_au, hgi_lat_deg, hgi_lon_deg, lookAtSun = true) {
+    // Converter coordenadas heliocêntricas para cartesianas
+    const hgi_lat = hgi_lat_deg * Math.PI / 180;
+    const hgi_lon = hgi_lon_deg * Math.PI / 180;
+    
+    this.mode = 'free';
+    this.position = [
+      rad_au * Math.cos(hgi_lat) * Math.cos(hgi_lon),
+      rad_au * Math.sin(hgi_lat),
+      rad_au * Math.cos(hgi_lat) * Math.sin(hgi_lon)
+    ];
+    
+    if (lookAtSun) {
+      this.lookAt = [0, 0, 0]; // olhar para o Sol
+    }
+    
+    console.log(`Câmera posicionada em coordenadas heliocêntricas: ${rad_au} AU, ${hgi_lat_deg}°, ${hgi_lon_deg}°`);
+  },
+  
+  // Métodos de conveniência para pontos de vista específicos
+  setTopView(distance = 200) {
+    this.setToNorthPole(distance);
+  },
+  
+  setBottomView(distance = 200) {
+    this.setSouthPole(distance);
+  },
+  
+  setSideView(distance = 200) {
+    this.setEclipticView(distance, 0);
+  },
+  
+  setIsometricView(distance = 150) {
+    this.setInclinedView(35.26, 45, distance); // Ângulos isométricos clássicos
+  },
+  
+  // Animação suave entre posições
+  animateTo(targetTheta, targetPhi, targetRadius, duration = 2000) {
+    if (this.mode !== 'orbital') {
+      console.warn('Animação só funciona no modo orbital');
+      return;
+    }
+    
+    const startTheta = this.theta;
+    const startPhi = this.phi;
+    const startRadius = this.radius;
+    const startTime = performance.now();
+    
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Interpolação suave (easing)
+      const t = 0.5 * (1 - Math.cos(progress * Math.PI));
+      
+      this.theta = startTheta + (targetTheta - startTheta) * t;
+      this.phi = startPhi + (targetPhi - startPhi) * t;
+      this.radius = startRadius + (targetRadius - startRadius) * t;
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        console.log('Animação da câmera concluída');
+      }
+    };
+    
+    requestAnimationFrame(animate);
+    console.log(`Iniciando animação da câmera (duração: ${duration}ms)`);
   }
 };
 

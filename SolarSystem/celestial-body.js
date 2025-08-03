@@ -35,11 +35,12 @@ class CelestialBody {
     // CONFIG.bodyScale - usado para escalar o tamanho dos corpos celestes
     // CONFIG.scale - usado para escalar distâncias orbitais
     this.radius = options.radius || this.calculateVisualRadius();
-    this.orbitRadius = options.orbitRadius || this.calculateOrbitRadius();
-    this.orbitSpeed = options.orbitSpeed || this.calculateOrbitSpeed();
     this.rotationSpeed = options.rotationSpeed || this.calculateRotationSpeed();
-    this.color = options.color || [0, 0, 0, 1.0]; // Cor padrão (preto)
+    this.color = options.color || [1, 1, 1, 1.0]; // Cor padrão (branco)
     
+    // Velocidade orbital (calculada ou fornecida manualmente)
+    this.orbitSpeed = options.orbitSpeed || this.calculateOrbitSpeed();
+
     // Parâmetros para órbita elíptica
     this.ellipticalOrbit = this.calculateEllipticalOrbitParams();
     
@@ -73,9 +74,8 @@ class CelestialBody {
     this.rotation = options.rotation || [0, 0, 0];
     
     // Suporte para centro orbital como posição ou como objeto CelestialBody
-    this.orbitParent = null;
-    this.orbitCenter = [0, 0, 0];
-    this.setOrbitCenter(options.orbitCenter || options.orbitParent || [0, 0, 0]);
+    this.orbitParent = options.orbitParent || null;
+    this.orbitCenter = this.orbitParent ? null : (options.orbitCenter || [0, 0, 0]);
     
     this.textureUrl = options.textureUrl || null;
     this.isEmissive = options.isEmissive || false;
@@ -93,26 +93,44 @@ class CelestialBody {
 
   // Calcula o raio visual baseado no diâmetro real (com escala)
   calculateVisualRadius() {
-    if (this.physicalData.diameter === 0) return 1.0;
+    if (this.physicalData.diameter === 0) return CONFIG.logarithmicScale ? CONFIG.minBodySize : 1.0;
+    
+    // Verificar se está usando escala logarítmica
+    if (CONFIG.logarithmicScale) {
+      return this.calculateLogarithmicRadius();
+    }
+    
+    // Escala linear tradicional
+    if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') {
+      return CONFIG.sunSizeOverride || (this.physicalData.diameter / CONFIG.bodyScale);
+    }
     
     return this.physicalData.diameter / CONFIG.bodyScale;
   }
 
-  // Calcula o raio da órbita baseado na distância do Sol
-  calculateOrbitRadius() {
-    if (this.physicalData.distanceFromSun === 0) return 0;
-    if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
-
-    const distanceInAU = this.physicalData.distanceFromSun / CONFIG.earthDistance; // distância em UA
-    return distanceInAU / CONFIG.scale;
-  }
-
-  // Calcula a velocidade orbital baseada no período orbital
-  calculateOrbitSpeed() {
-    if (this.physicalData.orbitalPeriod === 0) return 0;
-    if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
+  // Calcula o raio usando escala logarítmica
+  calculateLogarithmicRadius() {
+    const diameter = this.physicalData.diameter;
     
-    return (2 * Math.PI / this.physicalData.orbitalPeriod) * CONFIG.simulationVelocity;
+    if (diameter <= 0) return CONFIG.minBodySize;
+    
+    // Usar diâmetros de referência para escala logarítmica
+    const minDiameter = CONFIG.referenceDiameters ? CONFIG.referenceDiameters.min : 1; // km
+    const maxDiameter = CONFIG.referenceDiameters ? CONFIG.referenceDiameters.max : 1400000; // km (Sol)
+    
+    // Calcular posição logarítmica
+    const logMin = Math.log10(minDiameter);
+    const logMax = Math.log10(maxDiameter);
+    const logCurrent = Math.log10(diameter);
+    
+    // Normalizar entre 0 e 1
+    const normalizedLog = (logCurrent - logMin) / (logMax - logMin);
+    
+    // Interpolar entre tamanhos mínimo e máximo
+    const minSize = CONFIG.minBodySize || 0.1;
+    const maxSize = CONFIG.maxBodySize || 10.0;
+    
+    return minSize + (maxSize - minSize) * Math.max(0, Math.min(1, normalizedLog));
   }
 
   // Calcula a velocidade de rotação baseada no período de rotação
@@ -121,6 +139,24 @@ class CelestialBody {
     const speed = (23.9 / Math.abs(this.physicalData.rotationPeriod)) * CONFIG.simulationVelocity; // 23.9 horas é o dia terrestre
     const direction = this.physicalData.rotationPeriod < 0 ? -1 : 1; // Considera rotação retrógrada (Vênus, Urano)
     return [0, speed * direction, 0];
+  }
+
+  // Calcula a velocidade orbital baseada no período orbital
+  calculateOrbitSpeed() {
+    if (this.physicalData.orbitalPeriod === 0 || 
+        this.name.toLowerCase() === 'sun' || 
+        this.name.toLowerCase() === 'sol') {
+      return 0;
+    }
+    
+    // Converter período orbital (dias terrestres) para velocidade angular (rad/unidade de tempo)
+    // Fórmula: ω = 2π / T, onde T é o período orbital
+    const orbitalPeriodInDays = this.physicalData.orbitalPeriod;
+    const earthYear = 365.25; // dias
+    const relativeOrbitalPeriod = orbitalPeriodInDays / earthYear;
+    
+    // Velocidade angular ajustada pela velocidade de simulação
+    return (2 * Math.PI / relativeOrbitalPeriod) * CONFIG.simulationVelocity;
   }
 
   // Calcula parâmetros para órbita elíptica realista
@@ -224,97 +260,26 @@ class CelestialBody {
       hgi_lon: hgi_lon_deg
     };
   }
-
-  // Métodos para dados temporais de coordenadas heliocêntricas
   
   // Carrega dados temporais de coordenadas a partir de um arquivo JSON
   async loadTemporalData(filePath) {
     try {
       const response = await fetch(filePath);
-      const data = await response.json();
       
-      // Validar e processar dados
-      this.temporalData.data = this.validateTemporalData(data);
-      this.temporalData.loaded = true;
-      this.temporalData.currentIndex = 0;
-      
-      console.log(`Dados temporais carregados para ${this.name}: ${this.temporalData.data.length} registros`);
-      
-      // Definir posição inicial com base no primeiro registro se disponível
-      if (this.temporalData.data.length > 0 && this.temporalData.useTemporalData) {
-        const firstRecord = this.temporalData.data[0];
-        this.heliocentricCoords = {
-          rad_au: firstRecord.RAD_AU,
-          hgi_lat: firstRecord.HGI_LAT / 100, // Dados vêm em centésimos de grau
-          hgi_lon: firstRecord.HGI_LON / 100
-        };
-        this.position = this.heliocentricToCartesian(
-          firstRecord.RAD_AU,
-          firstRecord.HGI_LAT / 100,
-          firstRecord.HGI_LON / 100
-        );
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
-      return true;
+      const data = await response.json();
+      this.temporalData.data = data;
+      this.temporalData.loaded = true;
+      this.temporalData.currentIndex = 0;
     } catch (error) {
-      console.error(`Erro ao carregar dados temporais para ${this.name}:`, error);
       this.temporalData.loaded = false;
-      return false;
+      throw new Error(`${this.name}: Erro ao carregar dados temporais de ${filePath}: ${error}`);
     }
   }
-  
-  // Valida e processa dados temporais
-  validateTemporalData(rawData) {
-    if (!Array.isArray(rawData)) {
-      throw new Error('Dados temporais devem ser um array');
-    }
-    
-    return rawData
-      .filter(record => {
-        // Verificar se todos os campos obrigatórios estão presentes
-        return record.YEAR !== undefined && 
-               record.DAY !== undefined && 
-               record.HR !== undefined &&
-               record.RAD_AU !== undefined && 
-               record.HGI_LAT !== undefined && 
-               record.HGI_LON !== undefined;
-      })
-      .sort((a, b) => {
-        // Ordenar por ano, dia e hora
-        if (a.YEAR !== b.YEAR) return a.YEAR - b.YEAR;
-        if (a.DAY !== b.DAY) return a.DAY - b.DAY;
-        return a.HR - b.HR;
-      });
-  }
-  
-  // Converte tempo de simulação para data/hora astronômica
-  simulationTimeToAstronomical(simulationTime) {
-    const scaledTime = simulationTime * this.timeConfig.timeScale;
-    
-    // Calcular dias desde o início
-    const totalHours = scaledTime;
-    const totalDays = Math.floor(totalHours / 24);
-    const remainingHours = totalHours % 24;
-    
-    let year = this.timeConfig.startYear;
-    let day = this.timeConfig.startDay + totalDays;
-    let hour = this.timeConfig.startHour + remainingHours;
-    
-    // Ajustar overflow de horas
-    if (hour >= 24) {
-      day += Math.floor(hour / 24);
-      hour = hour % 24;
-    }
-    
-    // Ajustar overflow de dias (simplificado - assumindo 365 dias por ano)
-    while (day > 365) {
-      day -= 365;
-      year++;
-    }
-    
-    return { year, day, hour };
-  }
-  
+
   // Encontra registros de dados temporais para um tempo específico
   findTemporalRecords(astronomicalTime) {
     if (!this.temporalData.loaded || this.temporalData.data.length === 0) {
@@ -408,12 +373,23 @@ class CelestialBody {
   // Obtém coordenadas heliocêntricas para um tempo específico (dados ou cálculo)
   getCoordinatesAtTime(simulationTime) {
     // Se dados temporais estão disponíveis e ativos, usar eles
-    if (this.temporalData.loaded && this.temporalData.useTemporalData) {
+    if (this.hasTemporalData() && this.temporalData.useTemporalData) {
       const astronomicalTime = this.simulationTimeToAstronomical(simulationTime);
       const records = this.findTemporalRecords(astronomicalTime);
       
       if (records) {
         return this.interpolateCoordinates(records.current, records.next, records.factor);
+      }
+      
+      // Se não encontrou registros válidos mas tem dados temporais, 
+      // usar o primeiro ou último registro disponível
+      if (this.temporalData.data.length > 0) {
+        const record = this.temporalData.data[0]; // ou pode usar o último: this.temporalData.data[this.temporalData.data.length - 1]
+        return {
+          rad_au: record.RAD_AU,
+          hgi_lat: record.HGI_LAT / 100,
+          hgi_lon: record.HGI_LON / 100
+        };
       }
     }
     
@@ -427,14 +403,6 @@ class CelestialBody {
     if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
       const position = this.calculateEllipticalPosition(simulationTime);
       return this.cartesianToHeliocentric(position.x, position.y, position.z);
-    }
-    
-    // Se há órbita circular simples
-    if (this.orbitRadius > 0) {
-      const angle = simulationTime * this.orbitSpeed;
-      const x = this.orbitRadius * Math.cos(angle);
-      const z = this.orbitRadius * Math.sin(angle);
-      return this.cartesianToHeliocentric(x, 0, z);
     }
     
     // Posição estática
@@ -495,7 +463,9 @@ class CelestialBody {
     const orbit = this.ellipticalOrbit;
     
     // Anomalia média (varia linearmente com o tempo)
-    const meanAnomaly = (time * this.orbitSpeed) % (2 * Math.PI);
+    // Usar velocidade orbital baseada na 3ª lei de Kepler se aplicável
+    const effectiveOrbitSpeed = this.getEffectiveOrbitSpeed();
+    const meanAnomaly = (time * effectiveOrbitSpeed) % (2 * Math.PI);
     
     // Resolver a equação de Kepler para encontrar a anomalia excêntrica
     // E - e*sin(E) = M (onde E = anomalia excêntrica, e = excentricidade, M = anomalia média)
@@ -517,6 +487,21 @@ class CelestialBody {
     }
     
     return { x: finalX, y: finalY, z: finalZ };
+  }
+  
+  // Obtém a velocidade orbital efetiva (considerando leis de Kepler se aplicável)
+  getEffectiveOrbitSpeed() {
+    if (!this.ellipticalOrbit.isElliptical) {
+      return this.orbitSpeed;
+    }
+    
+    // Para órbitas elípticas, usar a velocidade baseada no período orbital real
+    if (this.physicalData.orbitalPeriod > 0) {
+      const orbitalPeriodInYears = this.physicalData.orbitalPeriod / 365.25;
+      return (2 * Math.PI / orbitalPeriodInYears) * CONFIG.simulationVelocity;
+    }
+    
+    return this.orbitSpeed;
   }
   
   // Resolve a equação de Kepler usando método iterativo de Newton-Raphson
@@ -556,37 +541,49 @@ class CelestialBody {
     // Reset da matriz
     m4.identity(this.worldMatrix);
     
+    // Calcular posição baseada no tipo de órbita
+    let calculatedPosition = [0, 0, 0];
+    
     // Verificar se deve usar dados temporais ou cálculos matemáticos
-    if (this.temporalData.loaded && this.temporalData.useTemporalData) {
+    // Prioridade: 1) Dados temporais (se carregados e ativos), 2) Órbita elíptica, 3) Posição estática
+    if (this.hasTemporalData()) {
       // Usar dados temporais de coordenadas heliocêntricas
       const coords = this.getCoordinatesAtTime(time);
       const currentOrbitCenter = this.getCurrentOrbitCenter();
-      const position = this.heliocentricToCartesian(coords.rad_au, coords.hgi_lat, coords.hgi_lon);
+      calculatedPosition = this.heliocentricToCartesian(coords.rad_au, coords.hgi_lat, coords.hgi_lon);
       
       m4.translate(this.worldMatrix, this.worldMatrix, [
-        position[0] + currentOrbitCenter[0],
-        position[1] + currentOrbitCenter[1],
-        position[2] + currentOrbitCenter[2]
+        calculatedPosition[0] + currentOrbitCenter[0],
+        calculatedPosition[1] + currentOrbitCenter[1],
+        calculatedPosition[2] + currentOrbitCenter[2]
       ]);
-    }
-    // Aplicar órbita elíptica se houver
-    else if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
-      const position = this.calculateEllipticalPosition(time);
+      
+      // Atualizar posição armazenada
+      this.position = [
+        calculatedPosition[0] + currentOrbitCenter[0],
+        calculatedPosition[1] + currentOrbitCenter[1],
+        calculatedPosition[2] + currentOrbitCenter[2]
+      ];
+    } else if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
+      const ellipticalPos = this.calculateEllipticalPosition(time);
       const currentOrbitCenter = this.getCurrentOrbitCenter();
+      
+      calculatedPosition = [ellipticalPos.x, ellipticalPos.y, ellipticalPos.z];
+      
       m4.translate(this.worldMatrix, this.worldMatrix, [
-        position.x + currentOrbitCenter[0], 
-        currentOrbitCenter[1], 
-        position.z + currentOrbitCenter[2]
+        calculatedPosition[0] + currentOrbitCenter[0], 
+        calculatedPosition[1] + currentOrbitCenter[1], 
+        calculatedPosition[2] + currentOrbitCenter[2]
       ]);
-    } else if (this.orbitRadius > 0) {
-      // Fallback para órbita circular simples
-      const orbitAngle = time * this.orbitSpeed;
-      const currentOrbitCenter = this.getCurrentOrbitCenter();
-      const orbitX = currentOrbitCenter[0] + this.orbitRadius * Math.cos(orbitAngle);
-      const orbitZ = currentOrbitCenter[2] + this.orbitRadius * Math.sin(orbitAngle);
-      m4.translate(this.worldMatrix, this.worldMatrix, [orbitX, currentOrbitCenter[1], orbitZ]);
+      
+      // Atualizar posição armazenada
+      this.position = [
+        calculatedPosition[0] + currentOrbitCenter[0],
+        calculatedPosition[1] + currentOrbitCenter[1],
+        calculatedPosition[2] + currentOrbitCenter[2]
+      ];
     } else {
-      // Posição estática
+      // Posição estática (principalmente para o Sol)
       m4.translate(this.worldMatrix, this.worldMatrix, this.position);
     }
     
@@ -639,144 +636,7 @@ class CelestialBody {
   setRotationSpeed(x, y, z) {
     this.rotationSpeed = [x, y, z];
   }
-  
-  setOrbit(radius, speed, center = [0, 0, 0]) {
-    this.orbitRadius = radius;
-    this.orbitSpeed = speed;
-    this.orbitCenter = center;
-  }
-  
-  setColor(r, g, b, a = 1.0) {
-    this.color = [r, g, b, a];
-  }
-  
-  // Método para recalcular o raio visual com um novo fator de escala de corpo
-  recalculateVisualRadius(newBodyScale = null) {
-    const originalBodyScale = CONFIG.bodyScale;
-    if (newBodyScale !== null) {
-      CONFIG.bodyScale = newBodyScale;
-    }
-    
-    this.radius = this.calculateVisualRadius();
-    this.initGeometry(); // Regenerar geometria com novo raio
-    
-    // Restaurar valor original se um novo valor foi temporariamente definido
-    if (newBodyScale !== null) {
-      CONFIG.bodyScale = originalBodyScale;
-    }
-  }
-  
-  // Método para obter o raio real em km
-  getRealRadius() {
-    return this.physicalData.diameter / 2; // raio = diâmetro / 2
-  }
-  
-  // Método para obter a relação de escala atual para o tamanho
-  getBodyScaleRatio() {
-    const realRadius = this.getRealRadius();
-    if (realRadius === 0) return 0;
-    return this.radius / (realRadius / CONFIG.bodyScale);
-  }
-  
-  // Método para obter informações detalhadas
-  getDetailedInfo() {
-    return {
-      name: this.name,
-      physicalData: this.physicalData,
-      visualProperties: {
-        radius: this.radius,
-        orbitRadius: this.orbitRadius,
-        orbitSpeed: this.orbitSpeed,
-        rotationSpeed: this.rotationSpeed,
-        color: this.color,
-        isEmissive: this.isEmissive
-      },
-      ellipticalOrbit: {
-        semiMajorAxis: this.ellipticalOrbit.semiMajorAxis,
-        semiMinorAxis: this.ellipticalOrbit.semiMinorAxis,
-        eccentricity: this.ellipticalOrbit.eccentricity,
-        perihelion: this.ellipticalOrbit.perihelion,
-        aphelion: this.ellipticalOrbit.aphelion,
-        inclination: this.ellipticalOrbit.inclination,
-        isElliptical: this.ellipticalOrbit.isElliptical
-      },
-      heliocentricCoords: {
-        initial: this.getInitialHeliocentricCoords(),
-        current: this.getCurrentHeliocentricCoords(),
-        hasInitialCoords: this.hasHeliocentricCoords()
-      },
-      temporalData: this.getTemporalDataInfo()
-    };
-  }
 
-  // Método para debug das conversões
-  logConversionInfo() {
-    console.log(`${this.name}:`, {
-      physical: {
-        diameter: `${this.physicalData.diameter} km`,
-        distance: `${this.physicalData.distanceFromSun} milhões de km`,
-        orbitalPeriod: `${this.physicalData.orbitalPeriod} dias`,
-        rotationPeriod: `${this.physicalData.rotationPeriod} horas`,
-        temperature: `${this.physicalData.meanTemperature}°C`
-      },
-      visual: {
-        radius: this.radius.toFixed(2),
-        orbitRadius: this.orbitRadius.toFixed(2),
-        orbitSpeed: this.orbitSpeed.toFixed(4),
-        rotationSpeed: this.rotationSpeed[1].toFixed(4)
-      },
-      scaling: {
-        bodyScale: `1:${CONFIG.bodyScale.toLocaleString()} (tamanho dos corpos)`,
-        orbitScale: `1:${CONFIG.scale.toLocaleString()} (distâncias orbitais)`,
-        realRadius: `${this.getRealRadius().toFixed(1)} km`,
-        scaleRatio: this.getBodyScaleRatio().toFixed(6)
-      },
-      ellipticalOrbit: {
-        semiMajorAxis: this.ellipticalOrbit.semiMajorAxis.toFixed(2),
-        semiMinorAxis: this.ellipticalOrbit.semiMinorAxis.toFixed(2),
-        eccentricity: this.ellipticalOrbit.eccentricity.toFixed(4),
-        isElliptical: this.ellipticalOrbit.isElliptical
-      }
-    });
-  }
-
-  // Métodos utilitários
-  setPosition(x, y, z) {
-    this.position = [x, y, z];
-  }
-  
-  setRotationSpeed(x, y, z) {
-    this.rotationSpeed = [x, y, z];
-  }
-  
-  setOrbit(radius, speed, center = [0, 0, 0]) {
-    this.orbitRadius = radius;
-    this.orbitSpeed = speed;
-    this.setOrbitCenter(center);
-  }
-  
-  // Método para definir o centro orbital (posição ou objeto CelestialBody)
-  setOrbitCenter(center) {
-    if (center instanceof CelestialBody) {
-      this.orbitParent = center;
-      this.orbitCenter = [0, 0, 0]; // Será atualizado dinamicamente
-    } else if (Array.isArray(center) && center.length >= 3) {
-      this.orbitParent = null;
-      this.orbitCenter = [center[0], center[1], center[2]];
-    } else {
-      this.orbitParent = null;
-      this.orbitCenter = [0, 0, 0];
-    }
-  }
-  
-  // Método para obter a posição atual do centro orbital
-  getCurrentOrbitCenter() {
-    if (this.orbitParent) {
-      return this.orbitParent.getCurrentPosition();
-    }
-    return this.orbitCenter;
-  }
-  
   // Novo método para configurar órbita elíptica manualmente
   setEllipticalOrbit(semiMajorAxis, eccentricity, inclination = 0, speed = null, center = [0, 0, 0]) {
     this.ellipticalOrbit = {
@@ -821,19 +681,24 @@ class CelestialBody {
       return this.orbitSpeed;
     }
     
-    // A velocidade orbital varia na elipse (mais rápida no periélio)
+    // A velocidade orbital varia na elipse segundo a 2ª lei de Kepler
+    // v = sqrt(μ * (2/r - 1/a)) onde μ = GM, r = distância atual, a = semi-eixo maior
     const currentOrbitCenter = this.getCurrentOrbitCenter();
-    const currentDistance = this.getDistanceFrom({ getCurrentPosition: () => currentOrbitCenter });
+    const currentDistance = this.getDistanceFromOrbitCenter();
+    
+    if (currentDistance <= 0) return this.orbitSpeed;
+    
+    // Simplificação usando conservação de momento angular
+    // v1 * r1 = v2 * r2, onde v1 é velocidade no afélio, v2 no periélio
     const velocityFactor = Math.sqrt(this.ellipticalOrbit.aphelion / currentDistance);
-    return this.orbitSpeed * velocityFactor;
+    return this.getEffectiveOrbitSpeed() * velocityFactor;
   }
   
   // Métodos de conveniência para trabalhar com objetos pai
   
   // Define um objeto CelestialBody como pai orbital
-  setOrbitParent(parentBody, orbitRadius = null, orbitSpeed = null) {
+  setOrbitParent(parentBody, orbitSpeed = null) {
     this.setOrbitCenter(parentBody);
-    if (orbitRadius !== null) this.orbitRadius = orbitRadius;
     if (orbitSpeed !== null) this.orbitSpeed = orbitSpeed;
   }
   
@@ -887,171 +752,126 @@ class CelestialBody {
            this.heliocentricCoords.hgi_lon !== null;
   }
   
-  // Método para debug das coordenadas heliocêntricas
-  logHeliocentricInfo() {
-    const current = this.getCurrentHeliocentricCoords();
-    const initial = this.getInitialHeliocentricCoords();
-    
-    console.log(`${this.name} - Coordenadas Heliocêntricas:`, {
-      initial: {
-        rad_au: initial.rad_au?.toFixed(3) || "N/A",
-        hgi_lat: initial.hgi_lat?.toFixed(2) || "N/A",
-        hgi_lon: initial.hgi_lon?.toFixed(2) || "N/A"
-      },
-      current: {
-        rad_au: current.rad_au.toFixed(3),
-        hgi_lat: current.hgi_lat.toFixed(2),
-        hgi_lon: current.hgi_lon.toFixed(2)
-      },
-      cartesian: {
-        position: this.getCurrentPosition().map(v => v.toFixed(2))
-      }
-    });
-  }
-  
-  // Métodos de conveniência para dados temporais
-  
   // Verifica se dados temporais foram carregados
   hasTemporalData() {
     return this.temporalData.loaded && this.temporalData.data.length > 0;
   }
   
-  // Ativa/desativa uso de dados temporais
-  setUseTemporalData(use) {
-    this.temporalData.useTemporalData = use;
+  // Obtém o centro orbital atual (pode ser posição fixa ou objeto pai)
+  getCurrentOrbitCenter() {
+    if (this.orbitParent && typeof this.orbitParent.getCurrentPosition === 'function') {
+      return this.orbitParent.getCurrentPosition();
+    }
+    return this.orbitCenter || [0, 0, 0];
   }
   
-  // Ativa/desativa interpolação
-  setInterpolation(enabled) {
-    this.temporalData.interpolation = enabled;
+  // Define o centro orbital (pode ser coordenadas ou objeto CelestialBody)
+  setOrbitCenter(center) {
+    if (center && typeof center.getCurrentPosition === 'function') {
+      // É um objeto CelestialBody
+      this.orbitParent = center;
+      this.orbitCenter = null;
+    } else if (Array.isArray(center) && center.length === 3) {
+      // É uma coordenada [x, y, z]
+      this.orbitParent = null;
+      this.orbitCenter = center;
+    } else {
+      // Padrão: origem
+      this.orbitParent = null;
+      this.orbitCenter = [0, 0, 0];
+    }
   }
   
-  // Configura escala temporal
-  setTimeScale(scale) {
-    this.timeConfig.timeScale = scale;
-  }
-  
-  // Configura data/hora inicial da simulação
-  setStartTime(year, day, hour) {
-    this.timeConfig.startYear = year;
-    this.timeConfig.startDay = day;
-    this.timeConfig.startHour = hour;
+  // Converte tempo de simulação para tempo astronômico
+  simulationTimeToAstronomical(simulationTime) {
+    // Converter tempo de simulação para tempo astronômico
+    const totalHours = simulationTime * this.timeConfig.timeScale;
+    const totalDays = totalHours / 24;
+    
+    // Calcular ano, dia e hora baseados na configuração inicial
+    const startTotalDays = (this.timeConfig.startYear - 1980) * 365 + this.timeConfig.startDay;
+    const currentTotalDays = startTotalDays + totalDays;
+    
+    const year = 1980 + Math.floor(currentTotalDays / 365);
+    const dayOfYear = Math.floor(currentTotalDays % 365) + 1;
+    const hour = (currentTotalDays % 1) * 24;
+    
+    return {
+      year: year,
+      day: dayOfYear,
+      hour: hour
+    };
   }
   
   // Obtém informações sobre dados temporais
   getTemporalDataInfo() {
-    if (!this.temporalData.loaded) {
-      return { loaded: false };
-    }
-    
-    const data = this.temporalData.data;
-    const firstRecord = data[0];
-    const lastRecord = data[data.length - 1];
-    
     return {
-      loaded: true,
-      recordCount: data.length,
-      timeRange: {
-        start: { year: firstRecord.YEAR, day: firstRecord.DAY, hour: firstRecord.HR },
-        end: { year: lastRecord.YEAR, day: lastRecord.DAY, hour: lastRecord.HR }
-      },
+      loaded: this.temporalData.loaded,
+      dataCount: this.temporalData.data.length,
       interpolation: this.temporalData.interpolation,
       useTemporalData: this.temporalData.useTemporalData,
-      currentTime: this.simulationTimeToAstronomical(this.timeConfig.currentSimulationTime)
+      currentIndex: this.temporalData.currentIndex,
+      timeRange: this.temporalData.data.length > 0 ? {
+        start: {
+          year: this.temporalData.data[0].YEAR,
+          day: this.temporalData.data[0].DAY,
+          hour: this.temporalData.data[0].HR
+        },
+        end: {
+          year: this.temporalData.data[this.temporalData.data.length - 1].YEAR,
+          day: this.temporalData.data[this.temporalData.data.length - 1].DAY,
+          hour: this.temporalData.data[this.temporalData.data.length - 1].HR
+        }
+      } : null
     };
   }
   
-  // Obtém coordenadas para uma data específica
-  getCoordinatesAtDate(year, day, hour) {
-    if (!this.temporalData.loaded) {
-      return null;
-    }
-    
-    const records = this.findTemporalRecords({ year, day, hour });
-    if (!records) {
-      return null;
-    }
-    
-    return this.interpolateCoordinates(records.current, records.next, records.factor);
-  }
+  // =================
+  // MÉTODOS ESTÁTICOS PARA CONTROLE GLOBAL
+  // =================
   
-  // Método para debug dos dados temporais
-  logTemporalDataInfo() {
-    const info = this.getTemporalDataInfo();
-    
-    if (!info.loaded) {
-      console.log(`${this.name}: Nenhum dado temporal carregado`);
-      return;
-    }
-    
-    console.log(`${this.name} - Dados Temporais:`, {
-      registros: info.recordCount,
-      periodo: `${info.timeRange.start.year}/${info.timeRange.start.day} até ${info.timeRange.end.year}/${info.timeRange.end.day}`,
-      interpolacao: info.interpolation ? "Ativa" : "Inativa",
-      usoAtivo: info.useTemporalData ? "Sim" : "Não",
-      tempoAtual: `${info.currentTime.year}/${info.currentTime.day} ${info.currentTime.hour.toFixed(1)}h`
-    });
-    
-    if (info.useTemporalData) {
-      const currentCoords = this.getCoordinatesAtTime(this.timeConfig.currentSimulationTime);
-      console.log("Coordenadas atuais (dados temporais):", {
-        rad_au: currentCoords.rad_au.toFixed(3),
-        hgi_lat: currentCoords.hgi_lat.toFixed(2),
-        hgi_lon: currentCoords.hgi_lon.toFixed(2)
-      });
-    }
-  }
-  
-  // Método estático para carregar múltiplos corpos com dados temporais
-  static async loadMultipleWithTemporalData(configurations) {
-    const bodies = [];
-    
-    for (const config of configurations) {
-      const body = new CelestialBody(config.options || {});
+  // Ativar escala logarítmica globalmente
+  static enableLogarithmicScale(minSize = 0.1, maxSize = 10.0, referenceDiameters = null) {
+    if (!CONFIG.logarithmicScale) {
+      console.log('CelestialBody: Ativando escala logarítmica global');
+      CONFIG.logarithmicScale = true;
+      CONFIG.minBodySize = minSize;
+      CONFIG.maxBodySize = maxSize;
       
-      if (config.temporalDataPath) {
-        await body.loadTemporalData(config.temporalDataPath);
+      if (referenceDiameters) {
+        CONFIG.referenceDiameters = referenceDiameters;
+      } else {
+        // Diâmetros de referência padrão (em km)
+        CONFIG.referenceDiameters = {
+          min: 1, // Objetos pequenos
+          max: 1400000 // Sol
+        };
       }
-      
-      bodies.push(body);
     }
-    
-    return bodies;
-  }
-  // Métodos estáticos para gerenciamento de escala
-  
-  // Atualiza o fator de escala dos corpos e recalcula todos os raios
-  static updateBodyScale(newBodyScale, celestialBodies = []) {
-    CONFIG.bodyScale = newBodyScale;
-    
-    // Recalcular raios de todos os corpos fornecidos
-    celestialBodies.forEach(body => {
-      body.recalculateVisualRadius();
-    });
-    
-    console.log(`Fator de escala dos corpos atualizado para 1:${newBodyScale.toLocaleString()}`);
   }
   
-  // Atualiza o fator de escala orbital (distâncias)
-  static updateOrbitScale(newOrbitScale, celestialBodies = []) {
-    CONFIG.scale = newOrbitScale;
-    
-    // Recalcular órbitas de todos os corpos fornecidos
-    celestialBodies.forEach(body => {
-      body.orbitRadius = body.calculateOrbitRadius();
-      body.ellipticalOrbit = body.calculateEllipticalOrbitParams();
-    });
-    
-    console.log(`Fator de escala orbital atualizado para 1:${newOrbitScale.toLocaleString()}`);
+  // Desativar escala logarítmica globalmente
+  static disableLogarithmicScale() {
+    if (CONFIG.logarithmicScale) {
+      console.log('CelestialBody: Desativando escala logarítmica global');
+      CONFIG.logarithmicScale = false;
+    }
   }
   
-  // Obter informações atuais de escala
-  static getScaleInfo() {
+  // Verificar se escala logarítmica está ativa
+  static isLogarithmicScaleEnabled() {
+    return CONFIG.logarithmicScale === true;
+  }
+  
+  // Obter configurações atuais de escala
+  static getScaleConfig() {
     return {
+      logarithmicScale: CONFIG.logarithmicScale || false,
+      minBodySize: CONFIG.minBodySize || 0.1,
+      maxBodySize: CONFIG.maxBodySize || 10.0,
+      referenceDiameters: CONFIG.referenceDiameters || null,
       bodyScale: CONFIG.bodyScale,
-      orbitScale: CONFIG.scale,
-      bodyScaleRatio: `1:${CONFIG.bodyScale.toLocaleString()}`,
-      orbitScaleRatio: `1:${CONFIG.scale.toLocaleString()}`
+      scale: CONFIG.scale
     };
   }
 }

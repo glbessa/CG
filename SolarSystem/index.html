@@ -186,6 +186,95 @@
       color: #FFD700;
       font-weight: bold;
     }
+    
+    .celestial-bodies-panel {
+      position: absolute;
+      top: 220px;
+      right: 10px;
+      width: 250px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 8px;
+      color: white;
+      z-index: 1000;
+      font-size: 13px;
+    }
+    
+    .celestial-bodies-panel h3 {
+      margin: 0 0 15px 0;
+      color: #4CAF50;
+      text-align: center;
+      font-size: 16px;
+    }
+    
+    .celestial-body-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      margin-bottom: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .celestial-body-item:hover {
+      background: rgba(76, 175, 80, 0.3);
+      transform: translateX(5px);
+    }
+    
+    .celestial-body-item.focused {
+      background: rgba(76, 175, 80, 0.5);
+      border-left: 3px solid #4CAF50;
+    }
+    
+    .body-name {
+      font-weight: bold;
+      color: #FFD700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .body-icon {
+      font-size: 16px;
+    }
+    
+    .body-info {
+      text-align: right;
+      font-size: 11px;
+      color: #ccc;
+    }
+    
+    .body-distance {
+      color: #87CEEB;
+    }
+    
+    .body-type {
+      color: #FFA500;
+      font-size: 10px;
+    }
+    
+    .celestial-bodies-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .celestial-bodies-panel::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    
+    .celestial-bodies-panel::-webkit-scrollbar-thumb {
+      background: #4CAF50;
+      border-radius: 3px;
+    }
+    
+    .celestial-bodies-panel::-webkit-scrollbar-thumb:hover {
+      background: #45a049;
+    }
   </style>
 </head>
 <body>
@@ -228,6 +317,14 @@
   
     </div>
   
+  <!-- Lista de Corpos Celestes -->
+  <div class="celestial-bodies-panel" id="celestial-bodies-panel">
+    <h3>🌌 Corpos Celestes</h3>
+    <div id="celestial-bodies-list">
+      <!-- Os corpos celestes serão populados dinamicamente -->
+    </div>
+  </div>
+
   <!-- Informações da Câmera -->
   <div class="camera-info" id="camera-info">
     <h4>📹 Informações da Câmera</h4>

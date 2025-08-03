@@ -49,6 +49,10 @@ class System {
         },
         pluto: {
           textureUrl: 'textures/2k_pluto.jpg'
+        },
+        comet_halley: {
+          color: [0.9, 0.9, 0.7, 1.0],
+          useTexture: false
         }
       };
 
@@ -56,11 +60,6 @@ class System {
       
       // Configurações especiais pós-carregamento
       this.setupSpecialCases();
-      
-      console.log(`Sistema solar carregado com ${this.celestialBodies.length} corpos celestes`);
-      
-      // Debug: mostrar informações dos planetas carregados
-      this.celestialBodies.forEach(body => body.logConversionInfo());
       
       return this.celestialBodies;
     } catch (error) {
@@ -70,30 +69,11 @@ class System {
   }
 
   setupSpecialCases() {
-    // Encontrar Terra e Lua para configurar órbita lunar
     const earth = this.findCelestialBody('earth');
     const moon = this.findCelestialBody('moon');
     
     if (earth && moon) {
-      // Configurar a Lua para orbitar a Terra
-      moon.setOrbit(2.0, 2.0, [0, 0, 0]); // Será atualizado dinamicamente
-      
-      // Sobrescrever o método update da lua para seguir a Terra
-      const originalMoonUpdate = moon.update;
-      moon.update = function(time) {
-        // Primeiro, obter a posição atual da Terra
-        const earthPosition = [
-          earth.orbitRadius * Math.cos(time * earth.orbitSpeed),
-          0,
-          earth.orbitRadius * Math.sin(time * earth.orbitSpeed)
-        ];
-        
-        // Atualizar o centro da órbita da lua para a posição da Terra
-        this.orbitCenter = earthPosition;
-        
-        // Chamar o método update original
-        originalMoonUpdate.call(this, time);
-      };
+      moon.bodyParent = earth;
     }
   }
 
@@ -120,18 +100,31 @@ class System {
 
   // Atualizar todos os corpos celestes
   update(time) {
-    // Atualizar Terra primeiro
+    // Atualizar Sol primeiro (se necessário)
+    const sun = this.findCelestialBody('sun');
+    if (sun) {
+      sun.update(time);
+    }
+    
+    // Atualizar Terra antes da Lua
     const earth = this.findCelestialBody('earth');
     if (earth) {
       earth.update(time);
     }
 
-    // Atualizar outros corpos
+    // Atualizar todos os outros corpos (exceto Sol, Terra e Lua)
     this.celestialBodies.forEach(body => {
-      if (body.name.toLowerCase() !== 'earth') {
+      const name = body.name.toLowerCase();
+      if (name !== 'sun' && name !== 'earth' && name !== 'moon') {
         body.update(time);
       }
     });
+    
+    // Atualizar Lua por último para que ela tenha a posição atualizada da Terra
+    const moon = this.findCelestialBody('moon');
+    if (moon) {
+      moon.update(time);
+    }
   }
 
   // Renderizar todos os corpos celestes

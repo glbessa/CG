@@ -345,6 +345,140 @@ function updateEventDisplay(nearbyEvents, currentDate) {
   }
 }
 
+// Função para popular a lista de corpos celestes
+function populateCelestialBodiesList(solarSystem) {
+  const listContainer = document.getElementById('celestial-bodies-list');
+  if (!listContainer) return;
+  
+  listContainer.innerHTML = '';
+  
+  const bodies = solarSystem.getCelestialBodies();
+  
+  // Mapear ícones e tipos para cada corpo celeste
+  const bodyInfo = {
+    'sun': { icon: '☀️', type: 'Estrela', distance: '0 AU' },
+    'mercury': { icon: '☿️', type: 'Planeta', distance: '0.39 AU' },
+    'venus': { icon: '♀️', type: 'Planeta', distance: '0.72 AU' },
+    'earth': { icon: '🌍', type: 'Planeta', distance: '1.00 AU' },
+    'moon': { icon: '🌙', type: 'Satélite', distance: '384.4k km da Terra' },
+    'mars': { icon: '♂️', type: 'Planeta', distance: '1.52 AU' },
+    'jupiter': { icon: '♃', type: 'Gigante Gasoso', distance: '5.20 AU' },
+    'saturn': { icon: '♄', type: 'Gigante Gasoso', distance: '9.54 AU' },
+    'uranus': { icon: '♅', type: 'Gigante de Gelo', distance: '19.2 AU' },
+    'neptune': { icon: '♆', type: 'Gigante de Gelo', distance: '30.1 AU' },
+    'pluto': { icon: '♇', type: 'Planeta Anão', distance: '39.5 AU' },
+    'comet_halley': { icon: '☄️', type: 'Cometa', distance: 'Órbita Elíptica' }
+  };
+  
+  bodies.forEach(body => {
+    const bodyData = bodyInfo[body.name.toLowerCase()] || { 
+      icon: '⭐', 
+      type: 'Desconhecido', 
+      distance: 'N/A' 
+    };
+    
+    const bodyItem = document.createElement('div');
+    bodyItem.className = 'celestial-body-item';
+    bodyItem.dataset.bodyName = body.name;
+    
+    bodyItem.innerHTML = `
+      <div class="body-name">
+        <span class="body-icon">${bodyData.icon}</span>
+        <span>${body.name.charAt(0).toUpperCase() + body.name.slice(1)}</span>
+      </div>
+      <div class="body-info">
+        <div class="body-distance">${bodyData.distance}</div>
+        <div class="body-type">${bodyData.type}</div>
+      </div>
+    `;
+    
+    // Adicionar event listener para focar na câmera
+    bodyItem.addEventListener('click', () => {
+      focusCameraOnBody(body);
+      updateFocusedBody(body.name);
+    });
+    
+    listContainer.appendChild(bodyItem);
+  });
+}
+
+// Função para focar a câmera em um corpo celeste
+function focusCameraOnBody(body) {
+  if (camera.mode === 'orbital') {
+    // No modo orbital, ajustar a distância baseada no tamanho do corpo
+    const baseDistance = body.name === 'sun' ? 50 : 
+                        body.name === 'jupiter' || body.name === 'saturn' ? 30 :
+                        body.name === 'earth' || body.name === 'mars' ? 20 :
+                        body.name === 'moon' ? 10 : 25;
+    
+    camera.radius = baseDistance;
+    camera.theta = 0;
+    camera.phi = Math.PI / 6; // 30 graus
+    
+    // Definir o centro de foco (posição atual do corpo)
+    camera.target = body.position ? [...body.position] : [0, 0, 0];
+  } else {
+    // No modo livre, mover a câmera para próximo do corpo
+    const distance = body.name === 'sun' ? 40 : 
+                    body.name === 'jupiter' || body.name === 'saturn' ? 25 :
+                    body.name === 'earth' || body.name === 'mars' ? 15 :
+                    body.name === 'moon' ? 8 : 20;
+    
+    const bodyPos = body.position ? [...body.position] : [0, 0, 0];
+    camera.position = [
+      bodyPos[0] + distance,
+      bodyPos[1] + distance * 0.5,
+      bodyPos[2] + distance
+    ];
+    
+    // Olhar para o corpo
+    camera.lookAt = [...bodyPos];
+  }
+  
+  console.log(`Câmera focada em: ${body.name}`);
+}
+
+// Função para atualizar o corpo celeste em foco visual
+function updateFocusedBody(bodyName) {
+  // Remover foco de todos os itens
+  document.querySelectorAll('.celestial-body-item').forEach(item => {
+    item.classList.remove('focused');
+  });
+  
+  // Adicionar foco ao item selecionado
+  const selectedItem = document.querySelector(`[data-body-name="${bodyName}"]`);
+  if (selectedItem) {
+    selectedItem.classList.add('focused');
+  }
+}
+
+// Função para ordenar corpos celestes por distância do Sol
+function sortCelestialBodiesByDistance(solarSystem) {
+  const listContainer = document.getElementById('celestial-bodies-list');
+  if (!listContainer) return;
+  
+  const items = Array.from(listContainer.children);
+  const sortOrder = ['sun', 'mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto', 'comet_halley'];
+  
+  items.sort((a, b) => {
+    const nameA = a.dataset.bodyName.toLowerCase();
+    const nameB = b.dataset.bodyName.toLowerCase();
+    
+    const indexA = sortOrder.indexOf(nameA);
+    const indexB = sortOrder.indexOf(nameB);
+    
+    // Se não estiver na lista de ordenação, colocar no final
+    const orderA = indexA === -1 ? sortOrder.length : indexA;
+    const orderB = indexB === -1 ? sortOrder.length : indexB;
+    
+    return orderA - orderB;
+  });
+  
+  // Limpar e reordenar
+  listContainer.innerHTML = '';
+  items.forEach(item => listContainer.appendChild(item));
+}
+
 export {
     handlePointerLockMouseMove,
     updateModeIndicator,
@@ -355,5 +489,9 @@ export {
     initTimelineEventListeners,
     updateTimelineDisplay,
     updatePlayPauseButton,
-    updateEventDisplay
+    updateEventDisplay,
+    populateCelestialBodiesList,
+    focusCameraOnBody,
+    updateFocusedBody,
+    sortCelestialBodiesByDistance
 }
