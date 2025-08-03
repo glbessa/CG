@@ -227,8 +227,8 @@ float turbulence(float val)
 
 float pattern(in vec3 p, inout vec3 q, inout vec3 r)
 {
-    q.x = fbm4( p + 0.0, 0.0, 1.0, 2.0, 0.33 );
-    q.y = fbm4( p + 6.0, 0.0, 1.0, 2.0, 0.33 );
+    q.x = fbm4( p + 0.0, 0.0, 10.0, 2.0, 0.33 );
+    q.y = fbm4( p + 6.0, 0.0, 10.0, 2.0, 0.33 );
 
     r.x = fbm4( p + q - 2.4, 2.0, 1.0, 2.0, 0.5 );
     r.y = fbm4( p + q + 8.2, 02.0, 1.0, 2.0, 0.5 );
@@ -242,7 +242,7 @@ float pattern(in vec3 p, inout vec3 q, inout vec3 r)
 }
 
 float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
+    return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
 }
 
 float noise(vec2 p) {
@@ -294,6 +294,7 @@ void main() {
     vec3 black_q = vec3(0.0);
     vec3 black_r = vec3(0.0);
     vec3 p2 = vec3(p.xy * 0.02, p.z * 0.1);
+    //vec3 p2 = vec3(p.xy * 0.3, p.z * 0.9);
 
     float black = pattern(p2, black_q, black_r);
     black = smoothstep(0.9, 0.1, length(black_q * black));
