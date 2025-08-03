@@ -32,6 +32,8 @@ class CelestialBody {
     };
 
     // Converter dados físicos para propriedades visuais (se não fornecidas manualmente)
+    // CONFIG.bodyScale - usado para escalar o tamanho dos corpos celestes
+    // CONFIG.scale - usado para escalar distâncias orbitais
     this.radius = options.radius || this.calculateVisualRadius();
     this.orbitRadius = options.orbitRadius || this.calculateOrbitRadius();
     this.orbitSpeed = options.orbitSpeed || this.calculateOrbitSpeed();
@@ -93,7 +95,7 @@ class CelestialBody {
   calculateVisualRadius() {
     if (this.physicalData.diameter === 0) return 1.0;
     
-    return this.physicalData.diameter / CONFIG.scale;
+    return this.physicalData.diameter / CONFIG.bodyScale;
   }
 
   // Calcula o raio da órbita baseado na distância do Sol
@@ -648,6 +650,34 @@ class CelestialBody {
     this.color = [r, g, b, a];
   }
   
+  // Método para recalcular o raio visual com um novo fator de escala de corpo
+  recalculateVisualRadius(newBodyScale = null) {
+    const originalBodyScale = CONFIG.bodyScale;
+    if (newBodyScale !== null) {
+      CONFIG.bodyScale = newBodyScale;
+    }
+    
+    this.radius = this.calculateVisualRadius();
+    this.initGeometry(); // Regenerar geometria com novo raio
+    
+    // Restaurar valor original se um novo valor foi temporariamente definido
+    if (newBodyScale !== null) {
+      CONFIG.bodyScale = originalBodyScale;
+    }
+  }
+  
+  // Método para obter o raio real em km
+  getRealRadius() {
+    return this.physicalData.diameter / 2; // raio = diâmetro / 2
+  }
+  
+  // Método para obter a relação de escala atual para o tamanho
+  getBodyScaleRatio() {
+    const realRadius = this.getRealRadius();
+    if (realRadius === 0) return 0;
+    return this.radius / (realRadius / CONFIG.bodyScale);
+  }
+  
   // Método para obter informações detalhadas
   getDetailedInfo() {
     return {
@@ -694,6 +724,12 @@ class CelestialBody {
         orbitRadius: this.orbitRadius.toFixed(2),
         orbitSpeed: this.orbitSpeed.toFixed(4),
         rotationSpeed: this.rotationSpeed[1].toFixed(4)
+      },
+      scaling: {
+        bodyScale: `1:${CONFIG.bodyScale.toLocaleString()} (tamanho dos corpos)`,
+        orbitScale: `1:${CONFIG.scale.toLocaleString()} (distâncias orbitais)`,
+        realRadius: `${this.getRealRadius().toFixed(1)} km`,
+        scaleRatio: this.getBodyScaleRatio().toFixed(6)
       },
       ellipticalOrbit: {
         semiMajorAxis: this.ellipticalOrbit.semiMajorAxis.toFixed(2),
@@ -981,6 +1017,42 @@ class CelestialBody {
     }
     
     return bodies;
+  }
+  // Métodos estáticos para gerenciamento de escala
+  
+  // Atualiza o fator de escala dos corpos e recalcula todos os raios
+  static updateBodyScale(newBodyScale, celestialBodies = []) {
+    CONFIG.bodyScale = newBodyScale;
+    
+    // Recalcular raios de todos os corpos fornecidos
+    celestialBodies.forEach(body => {
+      body.recalculateVisualRadius();
+    });
+    
+    console.log(`Fator de escala dos corpos atualizado para 1:${newBodyScale.toLocaleString()}`);
+  }
+  
+  // Atualiza o fator de escala orbital (distâncias)
+  static updateOrbitScale(newOrbitScale, celestialBodies = []) {
+    CONFIG.scale = newOrbitScale;
+    
+    // Recalcular órbitas de todos os corpos fornecidos
+    celestialBodies.forEach(body => {
+      body.orbitRadius = body.calculateOrbitRadius();
+      body.ellipticalOrbit = body.calculateEllipticalOrbitParams();
+    });
+    
+    console.log(`Fator de escala orbital atualizado para 1:${newOrbitScale.toLocaleString()}`);
+  }
+  
+  // Obter informações atuais de escala
+  static getScaleInfo() {
+    return {
+      bodyScale: CONFIG.bodyScale,
+      orbitScale: CONFIG.scale,
+      bodyScaleRatio: `1:${CONFIG.bodyScale.toLocaleString()}`,
+      orbitScaleRatio: `1:${CONFIG.scale.toLocaleString()}`
+    };
   }
 }
 

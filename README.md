@@ -69,12 +69,20 @@ Este repositório contém uma série de projetos práticos que exploram diferent
 - Classe CelestialBody para objetos espaciais
 - Documentação detalhada em `SpinningCube/documentation/`
 
-### 7. SolarSystemSimulation
-**Diretório**: `SolarSystemSimulation/`
+### 7. SolarSystem (Sistema Solar)
+**Diretório**: `SolarSystem/`
 - Simulação completa do sistema solar
-- Múltiplos corpos celestes
-- Órbitas realísticas
+- Múltiplos corpos celestes com dados astronômicos reais
+- Órbitas elípticas realísticas
 - Texturas planetárias
+- Coordenadas heliocêntricas
+- Dados temporais para posicionamento preciso
+- Sistema de câmera orbital e livre
+- **Fatores de escala configuráveis**:
+  - `CONFIG.bodyScale`: Controla o tamanho visual dos corpos celestes
+  - `CONFIG.scale`: Controla as distâncias orbitais
+- Interface de controle completa com informações da câmera
+- Timeline astronômica com eventos históricos
 
 ### 8. ProceduralTerrainGeneration
 **Diretório**: `ProceduralTerrainGeneration/`

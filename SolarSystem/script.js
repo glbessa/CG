@@ -10,6 +10,19 @@ import Timeline from "./timeline.js";
 import { updateModeIndicator, updateSpeedIndicator, setTimeline } from "./ui.js";
 import { loadAsset } from "./utils.js";
 
+/*
+ * EXEMPLO DE USO DOS FATORES DE ESCALA:
+ * 
+ * Para ajustar dinamicamente os tamanhos dos corpos celestes:
+ * CelestialBody.updateBodyScale(5000, solarSystem.getCelestialBodies());
+ * 
+ * Para ajustar as distâncias orbitais:
+ * CelestialBody.updateOrbitScale(50000, solarSystem.getCelestialBodies());
+ * 
+ * Para obter informações atuais de escala:
+ * console.log(CelestialBody.getScaleInfo());
+ */
+
 const vertexShaderSource = await loadAsset('./shaders/general.vert');
 const fragmentShaderSource = await loadAsset('./shaders/general.frag');
 const sunFragmentShaderSource = await loadAsset('./shaders/sun.frag');
