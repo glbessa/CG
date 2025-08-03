@@ -108,21 +108,13 @@ class CelestialBody {
 
     // Converter distâncias reais para escala visual
     const earthDistance = 149.6; // milhões de km (1 AU)
-    const scaleCompression = 5; // Fator de compressão para visualização
     
     // Calcular semi-eixo maior (a) e excentricidade (e)
     const realSemiMajorAxis = this.physicalData.distanceFromSun; // distância média em milhões de km
     const eccentricity = this.physicalData.orbitalEccentricity;
-    
-    // Aplicar escala visual com compressão logarítmica para planetas distantes
-    let visualSemiMajorAxis;
+  
     const relativeDistance = realSemiMajorAxis / earthDistance;
-    
-    if (relativeDistance > 10) {
-      visualSemiMajorAxis = 15 + Math.log(relativeDistance / 10) * 5;
-    } else {
-      visualSemiMajorAxis = relativeDistance * scaleCompression;
-    }
+    const visualSemiMajorAxis = relativeDistance / CONFIG.scale;
     
     // Calcular semi-eixo menor (b) usando: b = a * sqrt(1 - e²)
     const semiMinorAxis = visualSemiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity);

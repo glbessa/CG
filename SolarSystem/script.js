@@ -84,11 +84,8 @@ function render(time) {
     system.update(timelineTime);
     system.celestialBodies.forEach(body => {
       if (body.name === 'sun') {
-        // Renderizar o Sol com o shader especial
-        gl.useProgram(sunProgramInfo.program);
         body.render(sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
       } else {
-        gl.useProgram(programInfo.program);
         body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
       }
     });
