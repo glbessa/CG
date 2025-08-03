@@ -41,7 +41,15 @@ class CelestialBody {
     // Parâmetros para órbita elíptica
     this.ellipticalOrbit = this.calculateEllipticalOrbitParams();
     
-    this.position = options.position || [0, 0, 0];
+    // Coordenadas heliocêntricas para posição inicial
+    this.heliocentricCoords = {
+      rad_au: options.rad_au || null,
+      hgi_lat: options.hgi_lat || null,
+      hgi_lon: options.hgi_lon || null
+    };
+    
+    // Calcular posição inicial baseada em coordenadas heliocêntricas ou usar posição fornecida
+    this.position = this.calculateInitialPosition(options);
     this.rotation = options.rotation || [0, 0, 0];
     
     // Suporte para centro orbital como posição ou como objeto CelestialBody
@@ -140,6 +148,60 @@ class CelestialBody {
       focalDistance: focalDistance,
       isElliptical: eccentricity > 0.001, // Considerar elíptica se e > 0.001
       inclination: this.physicalData.orbitalInclination * Math.PI / 180 // Converter para radianos
+    };
+  }
+
+  // Calcula posição inicial baseada em coordenadas heliocêntricas ou posição fornecida
+  calculateInitialPosition(options) {
+    // Se posição explícita foi fornecida, usar ela
+    if (options.position) {
+      return options.position;
+    }
+    
+    // Se coordenadas heliocêntricas foram fornecidas, converter para cartesianas
+    if (options.rad_au !== undefined && options.hgi_lat !== undefined && options.hgi_lon !== undefined) {
+      return this.heliocentricToCartesian(options.rad_au, options.hgi_lat, options.hgi_lon);
+    }
+    
+    // Posição padrão
+    return [0, 0, 0];
+  }
+
+  // Converte coordenadas heliocêntricas para cartesianas
+  heliocentricToCartesian(rad_au, hgi_lat_deg, hgi_lon_deg) {
+    // Converter graus para radianos
+    const hgi_lat = hgi_lat_deg * Math.PI / 180;
+    const hgi_lon = hgi_lon_deg * Math.PI / 180;
+    
+    // Aplicar escala visual
+    const visualDistance = rad_au / CONFIG.scale;
+    
+    // Converter para coordenadas cartesianas
+    // Sistema heliocêntrico: origem no Sol
+    const x = visualDistance * Math.cos(hgi_lat) * Math.cos(hgi_lon);
+    const y = visualDistance * Math.sin(hgi_lat);
+    const z = visualDistance * Math.cos(hgi_lat) * Math.sin(hgi_lon);
+    
+    return [x, y, z];
+  }
+
+  // Converte coordenadas cartesianas para heliocêntricas
+  cartesianToHeliocentric(x, y, z) {
+    // Calcular distância radial
+    const rad_au = Math.sqrt(x * x + y * y + z * z) * CONFIG.scale;
+    
+    // Calcular latitude heliográfica
+    const hgi_lat_rad = Math.asin(y / (rad_au / CONFIG.scale));
+    const hgi_lat_deg = hgi_lat_rad * 180 / Math.PI;
+    
+    // Calcular longitude heliográfica
+    const hgi_lon_rad = Math.atan2(z, x);
+    const hgi_lon_deg = hgi_lon_rad * 180 / Math.PI;
+    
+    return {
+      rad_au: rad_au,
+      hgi_lat: hgi_lat_deg,
+      hgi_lon: hgi_lon_deg
     };
   }
 
@@ -357,6 +419,11 @@ class CelestialBody {
         aphelion: this.ellipticalOrbit.aphelion,
         inclination: this.ellipticalOrbit.inclination,
         isElliptical: this.ellipticalOrbit.isElliptical
+      },
+      heliocentricCoords: {
+        initial: this.getInitialHeliocentricCoords(),
+        current: this.getCurrentHeliocentricCoords(),
+        hasInitialCoords: this.hasHeliocentricCoords()
       }
     };
   }
@@ -501,6 +568,58 @@ class CelestialBody {
     const dy = currentPosition[1] - currentOrbitCenter[1];
     const dz = currentPosition[2] - currentOrbitCenter[2];
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  
+  // Métodos para trabalhar com coordenadas heliocêntricas
+  
+  // Define a posição usando coordenadas heliocêntricas
+  setHeliocentricPosition(rad_au, hgi_lat_deg, hgi_lon_deg) {
+    this.heliocentricCoords = {
+      rad_au: rad_au,
+      hgi_lat: hgi_lat_deg,
+      hgi_lon: hgi_lon_deg
+    };
+    this.position = this.heliocentricToCartesian(rad_au, hgi_lat_deg, hgi_lon_deg);
+  }
+  
+  // Obtém as coordenadas heliocêntricas atuais
+  getCurrentHeliocentricCoords() {
+    const currentPos = this.getCurrentPosition();
+    return this.cartesianToHeliocentric(currentPos[0], currentPos[1], currentPos[2]);
+  }
+  
+  // Obtém as coordenadas heliocêntricas iniciais (se definidas)
+  getInitialHeliocentricCoords() {
+    return this.heliocentricCoords;
+  }
+  
+  // Verifica se foram definidas coordenadas heliocêntricas iniciais
+  hasHeliocentricCoords() {
+    return this.heliocentricCoords.rad_au !== null && 
+           this.heliocentricCoords.hgi_lat !== null && 
+           this.heliocentricCoords.hgi_lon !== null;
+  }
+  
+  // Método para debug das coordenadas heliocêntricas
+  logHeliocentricInfo() {
+    const current = this.getCurrentHeliocentricCoords();
+    const initial = this.getInitialHeliocentricCoords();
+    
+    console.log(`${this.name} - Coordenadas Heliocêntricas:`, {
+      initial: {
+        rad_au: initial.rad_au?.toFixed(3) || "N/A",
+        hgi_lat: initial.hgi_lat?.toFixed(2) || "N/A",
+        hgi_lon: initial.hgi_lon?.toFixed(2) || "N/A"
+      },
+      current: {
+        rad_au: current.rad_au.toFixed(3),
+        hgi_lat: current.hgi_lat.toFixed(2),
+        hgi_lon: current.hgi_lon.toFixed(2)
+      },
+      cartesian: {
+        position: this.getCurrentPosition().map(v => v.toFixed(2))
+      }
+    });
   }
 }
 
