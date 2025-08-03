@@ -48,6 +48,24 @@ class CelestialBody {
       hgi_lon: options.hgi_lon || null
     };
     
+    // Dados temporais de coordenadas heliocêntricas
+    this.temporalData = {
+      loaded: false,
+      data: [],
+      currentIndex: 0,
+      interpolation: options.interpolation !== false, // Por padrão ativo
+      useTemporalData: options.useTemporalData !== false // Por padrão ativo se dados disponíveis
+    };
+    
+    // Configurações de tempo
+    this.timeConfig = {
+      startYear: options.startYear || 1980,
+      startDay: options.startDay || 1,
+      startHour: options.startHour || 0,
+      timeScale: options.timeScale || 1.0, // Fator de escala temporal
+      currentSimulationTime: 0
+    };
+    
     // Calcular posição inicial baseada em coordenadas heliocêntricas ou usar posição fornecida
     this.position = this.calculateInitialPosition(options);
     this.rotation = options.rotation || [0, 0, 0];
@@ -205,6 +223,222 @@ class CelestialBody {
     };
   }
 
+  // Métodos para dados temporais de coordenadas heliocêntricas
+  
+  // Carrega dados temporais de coordenadas a partir de um arquivo JSON
+  async loadTemporalData(filePath) {
+    try {
+      const response = await fetch(filePath);
+      const data = await response.json();
+      
+      // Validar e processar dados
+      this.temporalData.data = this.validateTemporalData(data);
+      this.temporalData.loaded = true;
+      this.temporalData.currentIndex = 0;
+      
+      console.log(`Dados temporais carregados para ${this.name}: ${this.temporalData.data.length} registros`);
+      
+      // Definir posição inicial com base no primeiro registro se disponível
+      if (this.temporalData.data.length > 0 && this.temporalData.useTemporalData) {
+        const firstRecord = this.temporalData.data[0];
+        this.heliocentricCoords = {
+          rad_au: firstRecord.RAD_AU,
+          hgi_lat: firstRecord.HGI_LAT / 100, // Dados vêm em centésimos de grau
+          hgi_lon: firstRecord.HGI_LON / 100
+        };
+        this.position = this.heliocentricToCartesian(
+          firstRecord.RAD_AU,
+          firstRecord.HGI_LAT / 100,
+          firstRecord.HGI_LON / 100
+        );
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Erro ao carregar dados temporais para ${this.name}:`, error);
+      this.temporalData.loaded = false;
+      return false;
+    }
+  }
+  
+  // Valida e processa dados temporais
+  validateTemporalData(rawData) {
+    if (!Array.isArray(rawData)) {
+      throw new Error('Dados temporais devem ser um array');
+    }
+    
+    return rawData
+      .filter(record => {
+        // Verificar se todos os campos obrigatórios estão presentes
+        return record.YEAR !== undefined && 
+               record.DAY !== undefined && 
+               record.HR !== undefined &&
+               record.RAD_AU !== undefined && 
+               record.HGI_LAT !== undefined && 
+               record.HGI_LON !== undefined;
+      })
+      .sort((a, b) => {
+        // Ordenar por ano, dia e hora
+        if (a.YEAR !== b.YEAR) return a.YEAR - b.YEAR;
+        if (a.DAY !== b.DAY) return a.DAY - b.DAY;
+        return a.HR - b.HR;
+      });
+  }
+  
+  // Converte tempo de simulação para data/hora astronômica
+  simulationTimeToAstronomical(simulationTime) {
+    const scaledTime = simulationTime * this.timeConfig.timeScale;
+    
+    // Calcular dias desde o início
+    const totalHours = scaledTime;
+    const totalDays = Math.floor(totalHours / 24);
+    const remainingHours = totalHours % 24;
+    
+    let year = this.timeConfig.startYear;
+    let day = this.timeConfig.startDay + totalDays;
+    let hour = this.timeConfig.startHour + remainingHours;
+    
+    // Ajustar overflow de horas
+    if (hour >= 24) {
+      day += Math.floor(hour / 24);
+      hour = hour % 24;
+    }
+    
+    // Ajustar overflow de dias (simplificado - assumindo 365 dias por ano)
+    while (day > 365) {
+      day -= 365;
+      year++;
+    }
+    
+    return { year, day, hour };
+  }
+  
+  // Encontra registros de dados temporais para um tempo específico
+  findTemporalRecords(astronomicalTime) {
+    if (!this.temporalData.loaded || this.temporalData.data.length === 0) {
+      return null;
+    }
+    
+    const { year, day, hour } = astronomicalTime;
+    
+    // Encontrar o índice do registro mais próximo
+    let bestIndex = 0;
+    let bestTimeDiff = Infinity;
+    
+    for (let i = 0; i < this.temporalData.data.length; i++) {
+      const record = this.temporalData.data[i];
+      const timeDiff = Math.abs(
+        (record.YEAR - year) * 365 * 24 +
+        (record.DAY - day) * 24 +
+        (record.HR - hour)
+      );
+      
+      if (timeDiff < bestTimeDiff) {
+        bestTimeDiff = timeDiff;
+        bestIndex = i;
+      }
+    }
+    
+    // Se interpolação está ativa, retornar registros adjacentes para interpolação
+    if (this.temporalData.interpolation && bestIndex < this.temporalData.data.length - 1) {
+      return {
+        current: this.temporalData.data[bestIndex],
+        next: this.temporalData.data[bestIndex + 1],
+        factor: this.calculateInterpolationFactor(astronomicalTime, bestIndex)
+      };
+    }
+    
+    return {
+      current: this.temporalData.data[bestIndex],
+      next: null,
+      factor: 0
+    };
+  }
+  
+  // Calcula fator de interpolação entre dois registros
+  calculateInterpolationFactor(targetTime, currentIndex) {
+    if (currentIndex >= this.temporalData.data.length - 1) {
+      return 0;
+    }
+    
+    const current = this.temporalData.data[currentIndex];
+    const next = this.temporalData.data[currentIndex + 1];
+    
+    const currentTime = current.YEAR * 365 * 24 + current.DAY * 24 + current.HR;
+    const nextTime = next.YEAR * 365 * 24 + next.DAY * 24 + next.HR;
+    const targetTimeNum = targetTime.year * 365 * 24 + targetTime.day * 24 + targetTime.hour;
+    
+    if (nextTime === currentTime) return 0;
+    
+    return Math.max(0, Math.min(1, (targetTimeNum - currentTime) / (nextTime - currentTime)));
+  }
+  
+  // Interpola coordenadas heliocêntricas entre dois registros
+  interpolateCoordinates(record1, record2, factor) {
+    if (!record2 || factor === 0) {
+      return {
+        rad_au: record1.RAD_AU,
+        hgi_lat: record1.HGI_LAT / 100,
+        hgi_lon: record1.HGI_LON / 100
+      };
+    }
+    
+    // Interpolação linear para rad_au e hgi_lat
+    const rad_au = record1.RAD_AU + (record2.RAD_AU - record1.RAD_AU) * factor;
+    const hgi_lat = (record1.HGI_LAT + (record2.HGI_LAT - record1.HGI_LAT) * factor) / 100;
+    
+    // Interpolação circular para longitude (considerando wrap-around em 360°)
+    let lon1 = record1.HGI_LON / 100;
+    let lon2 = record2.HGI_LON / 100;
+    
+    // Ajustar para a diferença mínima (considerando wrap-around)
+    let lonDiff = lon2 - lon1;
+    if (lonDiff > 180) lonDiff -= 360;
+    if (lonDiff < -180) lonDiff += 360;
+    
+    let hgi_lon = lon1 + lonDiff * factor;
+    if (hgi_lon < 0) hgi_lon += 360;
+    if (hgi_lon >= 360) hgi_lon -= 360;
+    
+    return { rad_au, hgi_lat, hgi_lon };
+  }
+  
+  // Obtém coordenadas heliocêntricas para um tempo específico (dados ou cálculo)
+  getCoordinatesAtTime(simulationTime) {
+    // Se dados temporais estão disponíveis e ativos, usar eles
+    if (this.temporalData.loaded && this.temporalData.useTemporalData) {
+      const astronomicalTime = this.simulationTimeToAstronomical(simulationTime);
+      const records = this.findTemporalRecords(astronomicalTime);
+      
+      if (records) {
+        return this.interpolateCoordinates(records.current, records.next, records.factor);
+      }
+    }
+    
+    // Fallback: usar cálculos matemáticos baseados em órbita
+    return this.calculateMathematicalPosition(simulationTime);
+  }
+  
+  // Calcula posição usando fórmulas matemáticas (fallback)
+  calculateMathematicalPosition(simulationTime) {
+    // Se há órbita elíptica configurada, usar ela
+    if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
+      const position = this.calculateEllipticalPosition(simulationTime);
+      return this.cartesianToHeliocentric(position.x, position.y, position.z);
+    }
+    
+    // Se há órbita circular simples
+    if (this.orbitRadius > 0) {
+      const angle = simulationTime * this.orbitSpeed;
+      const x = this.orbitRadius * Math.cos(angle);
+      const z = this.orbitRadius * Math.sin(angle);
+      return this.cartesianToHeliocentric(x, 0, z);
+    }
+    
+    // Posição estática
+    return this.cartesianToHeliocentric(this.position[0], this.position[1], this.position[2]);
+  }
+
   // Método estático para carregar do data.json
   static async loadFromDataJson(name, visualOptions = {}) {
     try {
@@ -314,11 +548,27 @@ class CelestialBody {
   }
   
   update(time) {
+    // Atualizar tempo de simulação
+    this.timeConfig.currentSimulationTime = time;
+    
     // Reset da matriz
     m4.identity(this.worldMatrix);
     
+    // Verificar se deve usar dados temporais ou cálculos matemáticos
+    if (this.temporalData.loaded && this.temporalData.useTemporalData) {
+      // Usar dados temporais de coordenadas heliocêntricas
+      const coords = this.getCoordinatesAtTime(time);
+      const currentOrbitCenter = this.getCurrentOrbitCenter();
+      const position = this.heliocentricToCartesian(coords.rad_au, coords.hgi_lat, coords.hgi_lon);
+      
+      m4.translate(this.worldMatrix, this.worldMatrix, [
+        position[0] + currentOrbitCenter[0],
+        position[1] + currentOrbitCenter[1],
+        position[2] + currentOrbitCenter[2]
+      ]);
+    }
     // Aplicar órbita elíptica se houver
-    if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
+    else if (this.ellipticalOrbit.isElliptical && this.ellipticalOrbit.semiMajorAxis > 0) {
       const position = this.calculateEllipticalPosition(time);
       const currentOrbitCenter = this.getCurrentOrbitCenter();
       m4.translate(this.worldMatrix, this.worldMatrix, [
@@ -424,7 +674,8 @@ class CelestialBody {
         initial: this.getInitialHeliocentricCoords(),
         current: this.getCurrentHeliocentricCoords(),
         hasInitialCoords: this.hasHeliocentricCoords()
-      }
+      },
+      temporalData: this.getTemporalDataInfo()
     };
   }
 
@@ -620,6 +871,116 @@ class CelestialBody {
         position: this.getCurrentPosition().map(v => v.toFixed(2))
       }
     });
+  }
+  
+  // Métodos de conveniência para dados temporais
+  
+  // Verifica se dados temporais foram carregados
+  hasTemporalData() {
+    return this.temporalData.loaded && this.temporalData.data.length > 0;
+  }
+  
+  // Ativa/desativa uso de dados temporais
+  setUseTemporalData(use) {
+    this.temporalData.useTemporalData = use;
+  }
+  
+  // Ativa/desativa interpolação
+  setInterpolation(enabled) {
+    this.temporalData.interpolation = enabled;
+  }
+  
+  // Configura escala temporal
+  setTimeScale(scale) {
+    this.timeConfig.timeScale = scale;
+  }
+  
+  // Configura data/hora inicial da simulação
+  setStartTime(year, day, hour) {
+    this.timeConfig.startYear = year;
+    this.timeConfig.startDay = day;
+    this.timeConfig.startHour = hour;
+  }
+  
+  // Obtém informações sobre dados temporais
+  getTemporalDataInfo() {
+    if (!this.temporalData.loaded) {
+      return { loaded: false };
+    }
+    
+    const data = this.temporalData.data;
+    const firstRecord = data[0];
+    const lastRecord = data[data.length - 1];
+    
+    return {
+      loaded: true,
+      recordCount: data.length,
+      timeRange: {
+        start: { year: firstRecord.YEAR, day: firstRecord.DAY, hour: firstRecord.HR },
+        end: { year: lastRecord.YEAR, day: lastRecord.DAY, hour: lastRecord.HR }
+      },
+      interpolation: this.temporalData.interpolation,
+      useTemporalData: this.temporalData.useTemporalData,
+      currentTime: this.simulationTimeToAstronomical(this.timeConfig.currentSimulationTime)
+    };
+  }
+  
+  // Obtém coordenadas para uma data específica
+  getCoordinatesAtDate(year, day, hour) {
+    if (!this.temporalData.loaded) {
+      return null;
+    }
+    
+    const records = this.findTemporalRecords({ year, day, hour });
+    if (!records) {
+      return null;
+    }
+    
+    return this.interpolateCoordinates(records.current, records.next, records.factor);
+  }
+  
+  // Método para debug dos dados temporais
+  logTemporalDataInfo() {
+    const info = this.getTemporalDataInfo();
+    
+    if (!info.loaded) {
+      console.log(`${this.name}: Nenhum dado temporal carregado`);
+      return;
+    }
+    
+    console.log(`${this.name} - Dados Temporais:`, {
+      registros: info.recordCount,
+      periodo: `${info.timeRange.start.year}/${info.timeRange.start.day} até ${info.timeRange.end.year}/${info.timeRange.end.day}`,
+      interpolacao: info.interpolation ? "Ativa" : "Inativa",
+      usoAtivo: info.useTemporalData ? "Sim" : "Não",
+      tempoAtual: `${info.currentTime.year}/${info.currentTime.day} ${info.currentTime.hour.toFixed(1)}h`
+    });
+    
+    if (info.useTemporalData) {
+      const currentCoords = this.getCoordinatesAtTime(this.timeConfig.currentSimulationTime);
+      console.log("Coordenadas atuais (dados temporais):", {
+        rad_au: currentCoords.rad_au.toFixed(3),
+        hgi_lat: currentCoords.hgi_lat.toFixed(2),
+        hgi_lon: currentCoords.hgi_lon.toFixed(2)
+      });
+    }
+  }
+  
+  // Método estático para carregar múltiplos corpos com dados temporais
+  static async loadMultipleWithTemporalData(configurations) {
+    const bodies = [];
+    
+    for (const config of configurations) {
+      const body = new CelestialBody(config.options || {});
+      
+      if (config.temporalDataPath) {
+        await body.loadTemporalData(config.temporalDataPath);
+      }
+      
+      bodies.push(body);
+    }
+    
+    return bodies;
   }
 }
 

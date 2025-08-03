@@ -1,0 +1,162 @@
+[
+  {
+    "YEAR": 1980,
+    "DAY": 1,
+    "HR": 0,
+    "RAD_AU": 0.9832,
+    "HGI_LAT": -2969,
+    "HGI_LON": 24064
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 2,
+    "HR": 0,
+    "RAD_AU": 0.9832,
+    "HGI_LAT": -3085,
+    "HGI_LON": 25078
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 3,
+    "HR": 0,
+    "RAD_AU": 0.9833,
+    "HGI_LAT": -3200,
+    "HGI_LON": 26091
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 4,
+    "HR": 0,
+    "RAD_AU": 0.9833,
+    "HGI_LAT": -3314,
+    "HGI_LON": 27105
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 5,
+    "HR": 0,
+    "RAD_AU": 0.9834,
+    "HGI_LAT": -3427,
+    "HGI_LON": 28118
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 6,
+    "HR": 0,
+    "RAD_AU": 0.9834,
+    "HGI_LAT": -3540,
+    "HGI_LON": 29132
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 7,
+    "HR": 0,
+    "RAD_AU": 0.9835,
+    "HGI_LAT": -3651,
+    "HGI_LON": 30145
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 8,
+    "HR": 0,
+    "RAD_AU": 0.9835,
+    "HGI_LAT": -3762,
+    "HGI_LON": 31159
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 9,
+    "HR": 0,
+    "RAD_AU": 0.9836,
+    "HGI_LAT": -3872,
+    "HGI_LON": 32172
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 10,
+    "HR": 0,
+    "RAD_AU": 0.9836,
+    "HGI_LAT": -3981,
+    "HGI_LON": 33186
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 11,
+    "HR": 0,
+    "RAD_AU": 0.9836,
+    "HGI_LAT": -4089,
+    "HGI_LON": 34199
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 12,
+    "HR": 0,
+    "RAD_AU": 0.9837,
+    "HGI_LAT": -4196,
+    "HGI_LON": 35213
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 13,
+    "HR": 0,
+    "RAD_AU": 0.9837,
+    "HGI_LAT": -4302,
+    "HGI_LON": 36226
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 14,
+    "HR": 0,
+    "RAD_AU": 0.9838,
+    "HGI_LAT": -4407,
+    "HGI_LON": 37240
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 15,
+    "HR": 0,
+    "RAD_AU": 0.9838,
+    "HGI_LAT": -4511,
+    "HGI_LON": 38253
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 16,
+    "HR": 0,
+    "RAD_AU": 0.9839,
+    "HGI_LAT": -4614,
+    "HGI_LON": 39267
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 17,
+    "HR": 0,
+    "RAD_AU": 0.9839,
+    "HGI_LAT": -4716,
+    "HGI_LON": 40280
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 18,
+    "HR": 0,
+    "RAD_AU": 0.9840,
+    "HGI_LAT": -4817,
+    "HGI_LON": 41294
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 19,
+    "HR": 0,
+    "RAD_AU": 0.9840,
+    "HGI_LAT": -4917,
+    "HGI_LON": 42307
+  },
+  {
+    "YEAR": 1980,
+    "DAY": 20,
+    "HR": 0,
+    "RAD_AU": 0.9841,
+    "HGI_LAT": -5016,
+    "HGI_LON": 43321
+  }
+]
