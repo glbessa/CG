@@ -144,6 +144,11 @@ class System {
       }
     });
   }
+
+  // Getter para acesso aos corpos celestes
+  getCelestialBodies() {
+    return this.celestialBodies;
+  }
 }
 
 export default System;

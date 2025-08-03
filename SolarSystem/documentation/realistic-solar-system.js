@@ -1,7 +1,7 @@
 // Exemplo prático: Sistema Solar com posições heliocêntricas realistas
 // Baseado em dados astronômicos aproximados
 
-import CelestialBody from './celestial-body.js';
+import CelestialBody from '../celestial-body.js';
 
 // Dados astronômicos reais aproximados (época J2000.0)
 const astronomicalData = {

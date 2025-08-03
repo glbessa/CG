@@ -442,7 +442,7 @@ class CelestialBody {
   // Método estático para carregar do data.json
   static async loadFromDataJson(name, visualOptions = {}) {
     try {
-      const response = await fetch('./planetary-data.json');
+      const response = await fetch('./data/planetary-data.json');
       const data = await response.json();
       
       if (!data[name.toLowerCase()]) {
@@ -465,7 +465,7 @@ class CelestialBody {
   // Método estático para carregar todos os corpos celestes
   static async loadAllFromDataJson(visualOptions = {}) {
     try {
-      const response = await fetch('./planetary-data.json');
+      const response = await fetch('./data/planetary-data.json');
       const data = await response.json();
       
       const bodies = [];

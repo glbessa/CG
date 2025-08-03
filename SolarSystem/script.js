@@ -25,7 +25,7 @@ const sunProgramInfo = twgl.createProgramInfo(gl, [vertexShaderSource, sunFragme
 const cometProgramInfo = twgl.createProgramInfo(gl, [vertexShaderSource, cometFragmentShaderSource]);
 
 // Criar instância do sistema solar
-const system = new System({
+let solarSystem = new System({
     celestialBodies: []
 });
 
@@ -35,13 +35,77 @@ const timeline = new Timeline();
 // Configurar referência da timeline no ui.js
 setTimeline(timeline);
 
+// Mapeamento de nomes dos corpos celestes para arquivos de dados temporais
+const temporalDataFiles = {
+    'earth': 'data/orbital/earth.json',
+    'mars': 'data/orbital/mars.json',
+    'mercury': 'data/orbital/mercury.json',
+    'venus': 'data/orbital/venus.json',
+    'jupiter': 'data/orbital/jupiter.json',
+    'saturn': 'data/orbital/saturn.json',
+    'uranus': 'data/orbital/uranus.json',
+    'neptune': 'data/orbital/neptune.json',
+    'pluto': 'data/orbital/pluto.json',
+    'moon': 'data/orbital/moon.json',
+    'comet_halley': 'data/orbital/comet_halley.json'
+};
+
+// Função para carregar dados temporais em um corpo celeste
+async function loadTemporalDataForBody(body) {
+    const bodyNameLower = body.name.toLowerCase();
+    const filePath = temporalDataFiles[bodyNameLower];
+    
+    if (filePath) {
+        try {
+            console.log(`Carregando dados temporais para ${body.name}...`);
+            const success = await body.loadTemporalData(filePath);
+            
+            if (success) {
+                console.log(`✅ Dados temporais carregados para ${body.name}`);
+                
+                // Configurar parâmetros temporais
+                body.setStartTime(1965, 1, 0); // Data inicial dos dados
+                body.setTimeScale(365.25 * 24); // 1 hora simulação = 1 ano real
+                body.setInterpolation(true);
+                body.setUseTemporalData(true);
+                
+                // Log informações sobre os dados carregados
+                body.logTemporalDataInfo();
+            } else {
+                console.log(`⚠️ Falha ao carregar dados temporais para ${body.name} - usando cálculos matemáticos`);
+            }
+        } catch (error) {
+            console.warn(`⚠️ Erro ao carregar dados temporais para ${body.name}:`, error.message);
+            console.log(`Usando cálculos matemáticos para ${body.name}`);
+        }
+    } else {
+        console.log(`ℹ️ Nenhum arquivo de dados temporais encontrado para ${body.name} - usando cálculos matemáticos`);
+    }
+}
+
 // Carregar dados do planetary-data.json
 async function initSolarSystem() {
-    await system.loadFromDataJson();
-    console.log('Sistema solar carregado com dados reais!');
+    try {
+        await solarSystem.loadFromDataJson('data/planetary-data.json');
+        console.log('Sistema solar carregado com sucesso!');
+        
+        // Carregar dados temporais para todos os corpos celestes
+        console.log('Iniciando carregamento de dados temporais...');
+        await loadTemporalDataForAllBodies();
+        console.log('Carregamento de dados temporais concluído!');
+        
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+    }
+}
+
+// Carregar dados temporais para todos os corpos celestes do sistema
+async function loadTemporalDataForAllBodies() {
+    const bodies = solarSystem.getCelestialBodies();
+    const loadPromises = bodies.map(body => loadTemporalDataForBody(body));
     
-    // Iniciar o loop de renderização
-    requestAnimationFrame(render);
+    // Carregar dados temporais em paralelo
+    await Promise.all(loadPromises);
 }
 
 // Matrizes
@@ -76,13 +140,10 @@ function render(time) {
     const cameraPosition = camera.getPosition();
     const lightPosition = [0, 0, 0]; // O Sol no centro
     
-    // Usar o programa de shader
-    //gl.useProgram(programInfo.program);
-    
     // Atualizar sistema solar com o tempo da timeline
     const timelineTime = timeline.getNormalizedTime() * 40.0; // Escalar para a simulação
-    system.update(timelineTime);
-    system.celestialBodies.forEach(body => {
+    solarSystem.update(timelineTime);
+    solarSystem.celestialBodies.forEach(body => {
       if (body.name === 'sun') {
         body.render(sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
       } else {
@@ -95,3 +156,4 @@ function render(time) {
 
 // Inicializar o sistema solar
 initSolarSystem();
+requestAnimationFrame(render);
