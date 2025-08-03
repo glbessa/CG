@@ -1,58 +1,39 @@
-import { canvas } from './init.js';
 import * as glMatrix from '../static/gl-matrix/esm/index.js';
 
-/**
- * Sistema de Câmera para Simulação Solar
- * 
- * Coordenadas Heliocêntricas (HGI - Heliographic Inertial):
- * - Origem: Centro do Sol
- * - Eixo Y: Polo Norte Solar (direção do eixo de rotação solar)
- * - Eixo X/Z: Plano eclíptico
- * 
- * Posições astronômicas especiais:
- * - Polo Norte Solar: phi ≈ 0 (Y positivo)
- * - Polo Sul Solar: phi ≈ π (Y negativo)
- * - Plano Eclíptico: phi = π/2 (Y = 0)
- * 
- * Métodos de posicionamento: 
- * - setToNorthPole(): Visão do polo norte solar
- * - setSouthPole(): Visão do polo sul solar
- * - setEclipticView(): Visão no plano eclíptico
- * - setInclinedView(): Visão com inclinação personalizada
- */
+class Camera {
+  constructor(options = {}) {
+    // Modo orbital
+    this.theta = 0;        // ângulo horizontal (radians)
+    this.phi = 0.01;       // ângulo vertical (radians) - polo norte solar (quase 0)
+    this.radius = 100;      // distância da câmera
 
-const camera = {
-  // Modo orbital
-  theta: 0,        // ângulo horizontal (radians)
-  phi: 0.01,       // ângulo vertical (radians) - polo norte solar (quase 0)
-  radius: 100,      // distância da câmera
-  
-  // Modo livre
-  position: [0, 100, 0],  // posição da câmera no modo livre - polo norte solar
-  yaw: 0,          // rotação horizontal (radians)
-  pitch: -Math.PI/2,      // rotação vertical (radians) - olhando para baixo do polo norte
-  
-  // Configurações gerais
-  fov: Math.PI / 4, // campo de visão
-  near: 0.1,       // plano próximo
-  far: 100000000,        // plano distante
-  speed: 0.1,      // velocidade de movimento
-  sensitivity: 0.005, // sensibilidade do mouse
-  
-  // Estados de controle
-  mode: 'orbital', // 'orbital' ou 'free'
-  isDragging: false,
-  lastX: 0,
-  lastY: 0,
-  keys: {},        // teclas pressionadas
-  target: [0, 0, 0], // alvo da câmera (usado no modo orbital)
-  lookAt: null,    // direção de olhar (usado no modo livre)
-  
-  // Limites para modo orbital
-  minRadius: 2.0,
-  maxRadius: 100000000,
-  minPhi: 0.01,
-  maxPhi: Math.PI - 0.01,
+    // Modo livre
+    this.position = [0, 100, 0];  // posição da câmera no modo livre - polo norte solar
+    this.yaw = 0;          // rotação horizontal (radians)
+    this.pitch = -Math.PI/2;      // rotação vertical (radians) - olhando para baixo do polo norte
+    
+    // Configurações gerais
+    this.fov = Math.PI / 4; // campo de visão
+    this.near = 0.1;       // plano próximo
+    this.far = 100000000;        // plano distante
+    this.speed = 0.1;      // velocidade de movimento
+    this.sensitivity = 0.005; // sensibilidade do mouse
+
+    // Estados de controle
+    this.mode = 'orbital'; // 'orbital' ou 'free'
+    this.isDragging = false;
+    this.lastX = 0;
+    this.lastY = 0;
+    this.keys = {};        // teclas pressionadas
+    this.target = [0, 0, 0]; // alvo da câmera (usado no modo orbital)
+    this.lookAt = null;    // direção de olhar (usado no modo livre)
+
+    // Limites para modo orbital
+    this.minRadius = 2.0;
+    this.maxRadius = 100000000;
+    this.minPhi = 0.01;
+    this.maxPhi = Math.PI - 0.01;
+  }
   
   // Métodos auxiliares
   getPosition() {
@@ -64,7 +45,7 @@ const camera = {
     } else {
       return [...this.position];
     }
-  },
+  }
   
   getTarget() {
     if (this.mode === 'orbital') {
@@ -83,19 +64,19 @@ const camera = {
         this.position[2] + z
       ];
     }
-  },
+  }
   
   updateProjectionMatrix(projectionMatrix, aspect) {
     const m4 = glMatrix.mat4;
     m4.perspective(projectionMatrix, this.fov, aspect, this.near, this.far);
-  },
+  }
   
   updateViewMatrix(viewMatrix, up = [0, 1, 0]) {
     const m4 = glMatrix.mat4;
     const eye = this.getPosition();
     const target = this.getTarget();
     m4.lookAt(viewMatrix, eye, target, up);
-  },
+  }
   
   // Processar movimento WASD
   processMovement(deltaTime) {
@@ -143,7 +124,7 @@ const camera = {
     if (this.keys['KeyE'] || this.keys['ShiftLeft']) {
       this.position[1] -= moveSpeed; // descer
     }
-  },
+  }
   
   // Alternar entre modos
   toggleMode() {
@@ -168,7 +149,7 @@ const camera = {
       this.theta = Math.atan2(dx, dz);
       this.phi = Math.acos(dy / this.radius);
     }
-  },
+  }
   
   // Posicionamentos astronômicos específicos
   setToNorthPole(distance = 100) {
@@ -178,7 +159,7 @@ const camera = {
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
     console.log(`Câmera posicionada no polo norte solar (distância: ${distance})`);
-  },
+  }
   
   setSouthPole(distance = 100) {
     this.mode = 'orbital';
@@ -187,7 +168,7 @@ const camera = {
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
     console.log(`Câmera posicionada no polo sul solar (distância: ${distance})`);
-  },
+  }
   
   setEclipticView(distance = 100, angle = 0) {
     this.mode = 'orbital';
@@ -196,7 +177,7 @@ const camera = {
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
     console.log(`Câmera posicionada no plano eclíptico (ângulo: ${(angle * 180 / Math.PI).toFixed(1)}°, distância: ${distance})`);
-  },
+  }
   
   setInclinedView(inclination = 30, azimuth = 0, distance = 100) {
     this.mode = 'orbital';
@@ -205,7 +186,7 @@ const camera = {
     this.radius = distance;
     this.target = [0, 0, 0];
     console.log(`Câmera posicionada com inclinação ${inclination}° e azimute ${azimuth}° (distância: ${distance})`);
-  },
+  }
   
   followCelestialBody(body, distance = 50, height = 20) {
     if (!body || !body.getCurrentPosition) {
@@ -226,7 +207,7 @@ const camera = {
     // Olhar para o corpo
     this.lookAt = [...bodyPos];
     console.log(`Câmera seguindo ${body.name || 'corpo celeste'}`);
-  },
+  }
   
   setToHeliocentricCoords(rad_au, hgi_lat_deg, hgi_lon_deg, lookAtSun = true) {
     // Converter coordenadas heliocêntricas para cartesianas
@@ -243,26 +224,24 @@ const camera = {
     if (lookAtSun) {
       this.lookAt = [0, 0, 0]; // olhar para o Sol
     }
-    
-    console.log(`Câmera posicionada em coordenadas heliocêntricas: ${rad_au} AU, ${hgi_lat_deg}°, ${hgi_lon_deg}°`);
-  },
+  }
   
   // Métodos de conveniência para pontos de vista específicos
   setTopView(distance = 200) {
     this.setToNorthPole(distance);
-  },
+  }
   
   setBottomView(distance = 200) {
     this.setSouthPole(distance);
-  },
+  }
   
   setSideView(distance = 200) {
     this.setEclipticView(distance, 0);
-  },
+  }
   
   setIsometricView(distance = 150) {
     this.setInclinedView(35.26, 45, distance); // Ângulos isométricos clássicos
-  },
+  }
   
   // Animação suave entre posições
   animateTo(targetTheta, targetPhi, targetRadius, duration = 2000) {
@@ -295,8 +274,9 @@ const camera = {
     };
     
     requestAnimationFrame(animate);
-    console.log(`Iniciando animação da câmera (duração: ${duration}ms)`);
   }
 };
+
+const camera = new Camera();
 
 export default camera;

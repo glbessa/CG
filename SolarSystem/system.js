@@ -7,76 +7,6 @@ class System {
     this.celestialBodies = celestialBodies;
   }
 
-  // Carregar sistema solar do data.json
-  async loadFromDataJson() {
-    try {
-      // Opções visuais específicas para cada corpo
-      const visualOptions = {
-        sun: {
-          isEmissive: true,
-          orbitRadius: 0,
-          textureUrl: 'textures/2k_sun.jpg',
-          useTexture: false,
-          color: [1.0, 1.0, 0.3, 1.0]
-        },
-        mercury: {
-          textureUrl: 'textures/2k_mercury.jpg'
-        },
-        venus: {
-          textureUrl: 'textures/2k_venus_atmosphere.jpg'
-        },
-        earth: {
-          textureUrl: 'textures/2k_earth_daymap.jpg'
-        },
-        moon: {
-          textureUrl: 'textures/2k_moon.jpg',
-          orbitRadius: 2.0 // Órbita próxima à Terra para visualização
-        },
-        mars: {
-          textureUrl: 'textures/2k_mars.jpg'
-        },
-        jupiter: {
-          textureUrl: 'textures/2k_jupiter.jpg'
-        },
-        saturn: {
-          textureUrl: 'textures/2k_saturn.jpg'
-        },
-        uranus: {
-          textureUrl: 'textures/2k_uranus.jpg'
-        },
-        neptune: {
-          textureUrl: 'textures/2k_neptune.jpg'
-        },
-        pluto: {
-          textureUrl: 'textures/2k_pluto.jpg'
-        },
-        comet_halley: {
-          color: [0.9, 0.9, 0.7, 1.0],
-          useTexture: false
-        }
-      };
-
-      this.celestialBodies = await CelestialBody.loadAllFromDataJson(visualOptions);
-      
-      // Configurações especiais pós-carregamento
-      this.setupSpecialCases();
-      
-      return this.celestialBodies;
-    } catch (error) {
-      console.error('Erro ao carregar sistema solar:', error);
-      return [];
-    }
-  }
-
-  setupSpecialCases() {
-    const earth = this.findCelestialBody('earth');
-    const moon = this.findCelestialBody('moon');
-    
-    if (earth && moon) {
-      moon.bodyParent = earth;
-    }
-  }
-
   addCelestialBody(options) {
     const body = new CelestialBody(options);
     this.celestialBodies.push(body);
@@ -125,17 +55,6 @@ class System {
     if (moon) {
       moon.update(time);
     }
-  }
-
-  // Renderizar todos os corpos celestes
-  render(programInfo, sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition) {
-    this.celestialBodies.forEach(body => {
-      if (body.name === 'sun') {
-        body.render(sunProgramInfo, viewProjectionMatrix, lightPosition, cameraPosition);
-      } else {
-        body.render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition);
-      }
-    });
   }
 
   // Getter para acesso aos corpos celestes
