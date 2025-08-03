@@ -1,5 +1,6 @@
 const CONFIG = {
     scale: 100_000, // Fator de escala para o sistema solar
+    simulationVelocity: 1, // Dias por segundo na simulação
     startDatetime: new Date('1980-01-01T00:00:00Z'), // Data inicial do sistema solar
     endDatetime: new Date('2020-01-01T00:00:00Z'), // Data final do sistema solar
     earthDistance: 149_597_870.7, // Distância média da Terra

@@ -36,7 +36,7 @@ class CelestialBody {
     this.orbitRadius = options.orbitRadius || this.calculateOrbitRadius();
     this.orbitSpeed = options.orbitSpeed || this.calculateOrbitSpeed();
     this.rotationSpeed = options.rotationSpeed || this.calculateRotationSpeed();
-    this.color = options.color || this.calculateColor();
+    this.color = options.color || [0, 0, 0, 1.0]; // Cor padrão (preto)
     
     // Parâmetros para órbita elíptica
     this.ellipticalOrbit = this.calculateEllipticalOrbitParams();
@@ -62,16 +62,7 @@ class CelestialBody {
   calculateVisualRadius() {
     if (this.physicalData.diameter === 0) return 1.0;
     
-    // Escala logarítmica para visualização (Sol como referência)
-    if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') {
-      return 1391000 / CONFIG.scale; // Sol fixo em 1391000 km
-    }
-    
-    //return this.physicalData.diameter / CONFIG.scale;
-
-    const sunDiameter = 1391000; // km
-    const logScale = Math.log(this.physicalData.diameter / 12756) * 0.3 + 0.8; // Terra como base
-    return Math.max(0.2, Math.min(logScale, 2.5)); // Limita entre 0.2 e 2.5
+    return this.physicalData.diameter / CONFIG.scale;
   }
 
   // Calcula o raio da órbita baseado na distância do Sol
@@ -79,17 +70,8 @@ class CelestialBody {
     if (this.physicalData.distanceFromSun === 0) return 0;
     if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
 
-    //return ((this.physicalData.perihelion + this.physicalData.aphelion) / 2) / CONFIG.scale;
-
-    // Escala para visualização com compressão logarítmica
-    const relativeDistance = this.physicalData.distanceFromSun / (CONFIG.earthDistance * 1_000_000);
-    
-    // Usar escala logarítmica para distâncias muito grandes
-    if (relativeDistance > 10) {
-      return 15 + Math.log(relativeDistance / 10) * 5;
-    } else {
-      return relativeDistance * 5; // Planetas internos mais próximos
-    }
+    const distanceInAU = this.physicalData.distanceFromSun / CONFIG.earthDistance; // distância em UA
+    return distanceInAU / CONFIG.scale;
   }
 
   // Calcula a velocidade orbital baseada no período orbital
@@ -97,42 +79,15 @@ class CelestialBody {
     if (this.physicalData.orbitalPeriod === 0) return 0;
     if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') return 0;
     
-    // Velocidade proporcional ao período (mais rápido para visualização)
-    const earthPeriod = 365.2; // dias
-    return (earthPeriod / this.physicalData.orbitalPeriod) * 1.0; // Aumentado para visualização
+    return (2 * Math.PI / this.physicalData.orbitalPeriod) * CONFIG.simulationVelocity;
   }
 
   // Calcula a velocidade de rotação baseada no período de rotação
   calculateRotationSpeed() {
     if (this.physicalData.rotationPeriod === 0) return [0, 0.5, 0];
-    
-    // Velocidade de rotação em Y (mais rápida para visualização)
-    const earthRotation = 24; // horas
-    const speed = (earthRotation / Math.abs(this.physicalData.rotationPeriod)) * 0.5;
-    
-    // Considera rotação retrógrada (Vênus, Urano)
-    const direction = this.physicalData.rotationPeriod < 0 ? -1 : 1;
-    
+    const speed = (23.9 / Math.abs(this.physicalData.rotationPeriod)) * CONFIG.simulationVelocity; // 23.9 horas é o dia terrestre
+    const direction = this.physicalData.rotationPeriod < 0 ? -1 : 1; // Considera rotação retrógrada (Vênus, Urano)
     return [0, speed * direction, 0];
-  }
-
-  // Calcula cor baseada na temperatura média
-  calculateColor() {
-    const temp = this.physicalData.meanTemperature;
-    
-    // Caso especial para o Sol
-    if (this.name.toLowerCase() === 'sun' || this.name.toLowerCase() === 'sol') {
-      return [1.0, 1.0, 0.3, 1.0]; // Amarelo brilhante para o Sol
-    }
-    
-    // Mapeamento de temperatura para cor
-    if (temp > 400) return [1.0, 0.8, 0.3, 1.0]; // Amarelo quente (Vênus)
-    if (temp > 0) return [0.8, 0.7, 0.5, 1.0];   // Marrom/bege (Terra)
-    if (temp > -100) return [0.8, 0.5, 0.3, 1.0]; // Laranja/vermelho (Marte)
-    if (temp > -150) return [0.9, 0.8, 0.6, 1.0]; // Amarelo pálido (Júpiter)
-    if (temp > -180) return [0.9, 0.9, 0.7, 1.0]; // Amarelo claro (Saturno)
-    if (temp > -200) return [0.4, 0.8, 0.9, 1.0]; // Azul (Urano)
-    return [0.2, 0.4, 0.8, 1.0]; // Azul escuro (Netuno, Plutão)
   }
 
   // Calcula parâmetros para órbita elíptica realista
@@ -333,6 +288,7 @@ class CelestialBody {
   }
   
   render(programInfo, viewProjectionMatrix, lightPosition, cameraPosition) {
+    gl.useProgram(programInfo.program);
     // Calcular matriz world-view-projection
     const worldViewProjectionMatrix = m4.create();
     m4.multiply(worldViewProjectionMatrix, viewProjectionMatrix, this.worldMatrix);
@@ -347,7 +303,7 @@ class CelestialBody {
       u_worldInverseTranspose: this.worldInverseTranspose,
       u_lightWorldPosition: lightPosition,
       u_viewWorldPosition: cameraPosition,
-      u_time: performance.now() * 0.001, // Tempo em segundos
+      u_time: performance.now() * 0.00001, // Velocidade da animação do shader do sol
       u_useTexture: this.useTexture,
       u_isEmissive: this.isEmissive,
     };
@@ -359,9 +315,7 @@ class CelestialBody {
     }
     
     twgl.setUniforms(programInfo, uniforms);
-    
-    // Desenhar
-    twgl.drawBufferInfo(gl, this.bufferInfo);
+    twgl.drawBufferInfo(gl, this.bufferInfo); // Desenhar
   }
   
   // Métodos utilitários

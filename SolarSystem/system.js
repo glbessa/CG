@@ -95,15 +95,6 @@ class System {
         originalMoonUpdate.call(this, time);
       };
     }
-
-    // Configurar o Sol
-    const sun = this.findCelestialBody('sun');
-    if (sun) {
-      sun.radius = 2.0; // Sol maior para visualização
-      sun.isEmissive = true;
-      sun.orbitRadius = 0;
-      sun.orbitSpeed = 0;
-    }
   }
 
   addCelestialBody(options) {

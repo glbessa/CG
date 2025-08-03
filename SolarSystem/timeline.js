@@ -5,9 +5,9 @@ class Timeline {
     this.startDate = new Date(CONFIG.startDatetime);
     this.endDate = new Date(CONFIG.endDatetime);
     this.currentDate = new Date(this.startDate);
+    this.realTimeScale = CONFIG.simulationVelocity; // Quantos dias reais passam por segundo de simulação
     this.isPlaying = true;
     this.timeSpeed = 1.0; // Multiplicador de velocidade temporal
-    this.realTimeScale = 1000; // Quantos dias reais passam por segundo de simulação
     
     // Eventos astronômicos importantes para destacar na timeline
     this.astronomicalEvents = this.generateAstronomicalEvents();
@@ -249,7 +249,7 @@ class Timeline {
       
       const timelineContainer = document.getElementById('timeline-container');
       if (timelineContainer) {
-        timelineContainer.style.position = 'relative';
+        //timelineContainer.style.position = 'relative';
         timelineContainer.appendChild(indicator);
       }
     }
