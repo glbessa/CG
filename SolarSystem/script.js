@@ -72,17 +72,179 @@ void main() {
 const sunFragmentShaderSource = `#version 300 es
 precision highp float;
 
-out vec4 outColor;
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform sampler2D u_texture;
+
+in vec2 v_texcoord;
+in vec3 v_normal;
 in vec3 v_position;
 
-uniform float u_time;
+out vec4 outColor;
 
-// Hash simples para ruído
+// Based on: https://www.shadertoy.com/view/WssSz8
+#define M_PI 3.14159265359
+
+vec3 mod289(vec3 x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 mod289(vec4 x) {
+    return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 permute(vec4 x) {
+    return mod289(((x*34.0)+1.0)*x);
+}
+
+vec4 taylorInvSqrt(vec4 r)
+{
+    return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+float snoise(vec3 v)
+{ 
+    const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+    const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+    // First corner
+    vec3 i  = floor(v + dot(v, C.yyy) );
+    vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+    // Other corners
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min( g.xyz, l.zxy );
+    vec3 i2 = max( g.xyz, l.zxy );
+
+    //   x0 = x0 - 0.0 + 0.0 * C.xxx;
+    //   x1 = x0 - i1  + 1.0 * C.xxx;
+    //   x2 = x0 - i2  + 2.0 * C.xxx;
+    //   x3 = x0 - 1.0 + 3.0 * C.xxx;
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+    vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+
+    // Permutations
+    i = mod289(i); 
+    vec4 p = 
+        permute
+        (
+            permute
+            ( 
+                permute
+                (
+                    i.z + vec4(0.0, i1.z, i2.z, 1.0)
+                )
+                + i.y + vec4(0.0, i1.y, i2.y, 1.0 )
+            )
+            + i.x + vec4(0.0, i1.x, i2.x, 1.0 )
+        );
+
+    // Gradients: 7x7 points over a square, mapped onto an octahedron.
+    // The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+    float n_ = 0.142857142857; // 1.0/7.0
+    vec3  ns = n_ * D.wyz - D.xzx;
+
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+    vec4 x = x_ *ns.x + ns.yyyy;
+    vec4 y = y_ *ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+
+    vec4 b0 = vec4( x.xy, y.xy );
+    vec4 b1 = vec4( x.zw, y.zw );
+
+    //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
+    //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+    vec3 p0 = vec3(a0.xy,h.x);
+    vec3 p1 = vec3(a0.zw,h.y);
+    vec3 p2 = vec3(a1.xy,h.z);
+    vec3 p3 = vec3(a1.zw,h.w);
+
+    //Normalise gradients
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+
+    // Mix final noise value
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
+}
+
+// p: position
+// o: how many layers
+// f: frequency
+// lac: how fast frequency changes between layers
+// r: how fast amplitude changes between layers
+float fbm4(vec3 p, float theta, float f, float lac, float r)
+{
+    mat3 mtx = mat3(
+        cos(theta), -sin(theta), 0.0,
+        sin(theta), cos(theta), 0.0,
+        0.0, 0.0, 1.0);
+
+    float frequency = f;
+    float lacunarity = lac;
+    float roughness = r;
+    float amp = 1.0;
+    float total_amp = 0.0;
+
+    float accum = 0.0;
+    vec3 X = p * frequency;
+    for(int i = 0; i < 4; i++)
+    {
+        accum += amp * snoise(X);
+        X *= (lacunarity + (snoise(X) + 0.1) * 0.006);
+        X = mtx * X;
+
+        total_amp += amp;
+        amp *= roughness;
+    }
+
+    return accum / total_amp;
+}
+
+
+float turbulence(float val)
+{
+    float n = 1.0 - abs(val);
+    return n * n;
+}
+
+float pattern(in vec3 p, inout vec3 q, inout vec3 r)
+{
+    q.x = fbm4( p + 0.0, 0.0, 1.0, 2.0, 0.33 );
+    q.y = fbm4( p + 6.0, 0.0, 1.0, 2.0, 0.33 );
+
+    r.x = fbm4( p + q - 2.4, 2.0, 1.0, 2.0, 0.5 );
+    r.y = fbm4( p + q + 8.2, 02.0, 1.0, 2.0, 0.5 );
+
+    q.x = turbulence( q.x );
+    q.y = turbulence( q.y );
+
+    float f = fbm4( p + (1.0 * r), 0.0, 1.0, 2.0, 0.5);
+
+    return f;
+}
+
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123);
 }
 
-// Ruído interpolado
 float noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -93,65 +255,63 @@ float noise(vec2 p) {
     u.y);
 }
 
-// FBM — fractal brownian motion
-float fbm(vec2 p) {
-  float total = 0.0;
-  float amplitude = 0.5;
-  for(int i = 0; i < 5; i++) {
-    total += noise(p) * amplitude;
-    p *= 2.0;
-    amplitude *= 0.5;
-  }
-  return total;
-}
-
-// Turbulência: fbm com distorção para manchas
-float turbulence(vec2 p) {
-  float t = fbm(p + fbm(p * 1.7));
-  t += fbm(p * 3.0 + u_time * 0.3);
-  return t * 0.5 + 0.5; // normaliza para [0,1]
+float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    vec3 u = f*f*(3.0 - 2.0*f);
+    return mix(
+        mix(mix(hash(i.xy + vec2(0.0,0.0)),
+                    hash(i.xy + vec2(1.0,0.0)), u.x),
+                mix(hash(i.xy + vec2(0.0,1.0)), hash(i.xy + vec2(1.0,1.0)), u.x), u.y),
+        mix(mix(hash(i.yz + vec2(0.0,0.0)),
+                    hash(i.yz + vec2(1.0,0.0)), u.x),
+                mix(hash(i.yz + vec2(0.0,1.0)), hash(i.yz + vec2(1.0,1.0)), u.x), u.y),
+        u.z);
 }
 
 void main() {
-  vec2 uv = v_position.xy * 1.5;
-  float radius = clamp(length(uv), 0.0, 1.0);
+    float t = u_time * 0.1;
+    vec3 normPos = normalize(v_position);
+    float lon = atan(normPos.y, normPos.x); // [-π, π]
+    float lat = acos(normPos.z);      // [0, π]
 
-  // Distorsão para quebrar linearidade no equador
-  float angle = atan(uv.y, uv.x);
-  float distortionStrength = 0.2;
+    // Normaliza para [0,1]
+    vec2 uv = vec2(cos(lon), sin(lon)) * sin(lat);  // coordenada circular
+    float n = noise(vec3(uv, t));
 
-  // Offset usando seno/cosseno e ruído animado
-  vec2 distortion = vec2(
-    sin(angle * 10.0 + u_time * 2.0),
-    cos(angle * 15.0 + u_time * 2.5)
-  ) * distortionStrength;
 
-  // Também um ruído adicional para a distorção ficar mais irregular
-  distortion += (noise(uv * 5.0 + u_time) - 0.5) * 0.1;
+    vec3 spectrum[4];
+    spectrum[0] = vec3(1.00, 1.00, 0.00);
+    spectrum[1] = vec3(0.50, 0.00, 0.00);
+    spectrum[2] = vec3(1.00, 0.40, 0.20);
+    spectrum[3] = vec3(1.00, 0.60, 0.00);
 
-  vec2 distortedUV = uv + distortion;
+    vec3 p = vec3(uv.x, uv.y, t);
+    vec3 q = vec3(0.0);
+    vec3 r = vec3(0.0);
+    vec3 brigth_q = vec3(0.0);
+    vec3 brigth_r = vec3(0.0);
+    vec3 black_q = vec3(0.0);
+    vec3 black_r = vec3(0.0);
+    vec3 p2 = vec3(p.xy * 0.02, p.z * 0.1);
 
-  // Pulsação animada
-  //float pulse = 0.6 + 0.4 * sin(u_time * 3.0 + radius * 10.0);
+    float black = pattern(p2, black_q, black_r);
+    black = smoothstep(0.9, 0.1, length(black_q * black));
 
-  // Manchas turbulentas com UV distorcido
-  float pattern = turbulence(distortedUV);
+    float brigth = pattern(p2 * 2.0, brigth_q, brigth_r);
+    brigth = smoothstep(0.0, 0.8, brigth * length(brigth_q));
 
-  // Cores do Sol do vermelho escuro ao amarelo quente
-  vec3 baseColor = mix(vec3(0.8, 0.2, 0.0), vec3(1.0, 0.9, 0.3), pattern);
+    p += min(length(brigth_q), length(black_q)) * 5.0;
 
-  // Aplicar pulso e fade radial suave
-  //vec3 color = baseColor * pulse * smoothstep(1.0, 0.6, 1.0 - radius);
-  vec3 color = baseColor * smoothstep(1.0, 0.6, 1.0 - radius);
+    float f = pattern(p, q, r);
 
-  // Glow central quente
-  float coreGlow = pow(1.0 - radius, 6.0);
-  color += coreGlow * vec3(1.0, 0.7, 0.2) * 0.4;
+    vec3 color = vec3(0.0);
+    color = mix(spectrum[1], spectrum[3], pow(length(q), 2.0));
+    color = mix(color, spectrum[3], pow(length(r), 1.4));
 
-  // Alpha para bordas suaves
-  float alpha = smoothstep(1.0, 0.7, 1.0 - radius);
+    color = pow(color, vec3(2.0));
 
-  outColor = vec4(color, alpha);
+    outColor = vec4(pow(black, 2.0) * (color + spectrum[2] * brigth * 5.0), 1.0);
 }
 `;
 
