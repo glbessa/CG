@@ -16,9 +16,6 @@ class Timeline {
       onEventUpdate: null
     };
     
-    // Eventos astronômicos importantes para destacar na timeline
-    this.astronomicalEvents = this.generateAstronomicalEvents();
-    
     // Elementos DOM
     this.slider = document.getElementById('timeline-slider');
     this.playPauseBtn = document.getElementById('timeline-play-pause');
@@ -28,11 +25,14 @@ class Timeline {
     
     this.initEventListeners();
     this.updateDisplay();
-    this.highlightNearbyEvents();
   }
   
   setUICallbacks(callbacks) {
     this.uiCallbacks = { ...this.uiCallbacks, ...callbacks };
+  }
+
+  setTimeSpeed(speed) {
+    CONFIG.simulationVelocity = speed;
   }
   
   initEventListeners() {
@@ -59,18 +59,72 @@ class Timeline {
     
     // Timeline slider
     if (this.slider) {
-      this.slider.addEventListener('input', (e) => {
-        const percentage = parseFloat(e.target.value);
-        this.setTimeByPercentage(percentage);
-      });
+      let debounceTimer = null;
+      let wasPlayingBeforeDrag = false;
       
-      // Prevent slider from affecting camera when dragging
+      // Prevenir comportamento padrão
       this.slider.addEventListener('mousedown', (e) => {
         e.stopPropagation();
+        this.isDraggingSlider = true;
+        wasPlayingBeforeDrag = this.isPlaying;
+        this.isPlaying = false; // Pausar imediatamente
+        console.log("Iniciou arraste do slider - pausando timeline");
+      });
+      
+      // Usando 'input' para resposta imediata durante o arraste
+      this.slider.addEventListener('input', (e) => {
+        if (!this.isDraggingSlider) {
+          this.isDraggingSlider = true;
+          wasPlayingBeforeDrag = this.isPlaying;
+          this.isPlaying = false;
+        }
+        
+        // Cancelar timer anterior
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+        }
+        
+        const percentage = parseFloat(e.target.value);
+        this.setTimeByPercentage(percentage);
+        
+        // Timer para detectar fim do arraste
+        debounceTimer = setTimeout(() => {
+          this.isDraggingSlider = false;
+          if (wasPlayingBeforeDrag) {
+            this.isPlaying = true;
+          }
+          console.log("Arraste finalizado (debounce) - restaurando estado:", wasPlayingBeforeDrag ? "playing" : "paused");
+        }, 300);
+      });
+      
+      this.slider.addEventListener('mouseup', (e) => {
+        setTimeout(() => {
+          this.isDraggingSlider = false;
+          if (wasPlayingBeforeDrag) {
+            this.isPlaying = true;
+          }
+          console.log("Finalizou arraste do slider - restaurando estado:", wasPlayingBeforeDrag ? "playing" : "paused");
+        }, 100);
       });
       
       this.slider.addEventListener('mousemove', (e) => {
         e.stopPropagation();
+      });
+      
+      // Para dispositivos touch
+      this.slider.addEventListener('touchstart', (e) => {
+        this.isDraggingSlider = true;
+        wasPlayingBeforeDrag = this.isPlaying;
+        this.isPlaying = false;
+      });
+      
+      this.slider.addEventListener('touchend', (e) => {
+        setTimeout(() => {
+          this.isDraggingSlider = false;
+          if (wasPlayingBeforeDrag) {
+            this.isPlaying = true;
+          }
+        }, 100);
       });
     }
   }
@@ -78,7 +132,7 @@ class Timeline {
   togglePlayPause() {
     this.isPlaying = !this.isPlaying;
     if (this.playPauseBtn) {
-      this.playPauseBtn.textContent = this.isPlaying ? '⏸️ Pausar' : '▶️ Reproduzir';
+      this.playPauseBtn.textContent = this.isPlaying ? 'Pausar' : 'Reproduzir';
     }
     if (this.uiCallbacks.onPlayPauseChange) {
       this.uiCallbacks.onPlayPauseChange(this.isPlaying);
@@ -97,6 +151,15 @@ class Timeline {
     const totalDuration = this.endDate.getTime() - this.startDate.getTime();
     const newTime = this.startDate.getTime() + (totalDuration * percentage / 100);
     this.currentDate = new Date(newTime);
+    
+    // Garantir que está dentro dos limites
+    if (this.currentDate.getTime() > this.endDate.getTime()) {
+      this.currentDate = new Date(this.endDate);
+    }
+    if (this.currentDate.getTime() < this.startDate.getTime()) {
+      this.currentDate = new Date(this.startDate);
+    }
+    
     this.updateDisplay();
   }
   
@@ -107,7 +170,7 @@ class Timeline {
   }
   
   update(deltaTime) {
-    if (!this.isPlaying) return;
+    if (!this.isPlaying || this.isDraggingSlider) return;
     
     // Avançar o tempo baseado na velocidade de simulação
     const millisecondsToAdd = deltaTime * this.realTimeScale * this.timeSpeed * 24 * 60 * 60 * 1000; // deltaTime em segundos -> dias -> milissegundos
@@ -118,7 +181,7 @@ class Timeline {
       this.currentDate = new Date(this.endDate);
       this.isPlaying = false;
       if (this.playPauseBtn) {
-        this.playPauseBtn.textContent = '▶️ Reproduzir';
+        this.playPauseBtn.textContent = 'Reproduzir';
       }
     }
     
@@ -128,14 +191,21 @@ class Timeline {
     }
     
     this.updateDisplay();
-    this.highlightNearbyEvents();
   }
   
   updateDisplay() {
-    // Atualizar slider
     const percentage = this.getCurrentTimePercentage();
-    if (this.slider) {
-      this.slider.value = percentage;
+    
+    // Atualizar slider apenas se não estiver sendo arrastado
+    // e se a diferença for significativa (evita conflitos)
+    if (this.slider && !this.isDraggingSlider) {
+      const currentSliderValue = parseFloat(this.slider.value);
+      const diff = Math.abs(currentSliderValue - percentage);
+      
+      // Só atualizar se a diferença for maior que 0.1%
+      if (diff > 0.1) {
+        this.slider.value = percentage;
+      }
     }
     
     // Atualizar display da data atual
@@ -211,66 +281,6 @@ class Timeline {
     }
     
     this.updateDisplay();
-  }
-  
-  // Gerar eventos astronômicos importantes baseados no período da simulação
-  generateAstronomicalEvents() {
-    const events = [];
-    
-    // Eventos conhecidos entre 1965-2035
-    const knownEvents = [
-      { date: new Date('1969-07-20'), name: 'Apollo 11 - Primeira chegada à Lua', type: 'mission' },
-      { date: new Date('1970-04-17'), name: 'Apollo 13 retorna à Terra após emergência', type: 'mission' },
-      { date: new Date('1975-07-17'), name: 'Missão Apollo-Soyuz', type: 'mission' },
-      { date: new Date('1977-08-20'), name: 'Lançamento da Voyager 2', type: 'mission' },
-      { date: new Date('1977-09-05'), name: 'Lançamento da Voyager 1', type: 'mission' },
-      { date: new Date('1981-04-12'), name: 'Primeiro voo do Space Shuttle', type: 'mission' },
-      { date: new Date('1986-02-09'), name: 'Passagem do Cometa Halley', type: 'comet' },
-      { date: new Date('1989-08-25'), name: 'Voyager 2 passa por Netuno', type: 'mission' },
-      { date: new Date('1990-02-14'), name: 'Voyager 1 - "Pale Blue Dot"', type: 'mission' },
-      { date: new Date('1994-07-16'), name: 'Impacto do Cometa Shoemaker-Levy 9 em Júpiter', type: 'impact' },
-      { date: new Date('1997-04-01'), name: 'Passagem do Cometa Hale-Bopp', type: 'comet' },
-      { date: new Date('2003-08-27'), name: 'Marte mais próximo da Terra em 60.000 anos', type: 'opposition' },
-      { date: new Date('2004-06-08'), name: 'Trânsito de Vênus', type: 'transit' },
-      { date: new Date('2006-08-24'), name: 'Plutão reclassificado como planeta anão', type: 'reclassification' },
-      { date: new Date('2012-06-05'), name: 'Trânsito de Vênus', type: 'transit' },
-      { date: new Date('2015-07-14'), name: 'New Horizons passa por Plutão', type: 'mission' },
-      { date: new Date('2020-07-30'), name: 'Lançamento do Mars Perseverance Rover', type: 'mission' },
-      { date: new Date('2024-04-08'), name: 'Eclipse Solar Total nos EUA', type: 'eclipse' },
-      { date: new Date('2029-04-13'), name: 'Asteroide Apophis passa próximo à Terra', type: 'asteroid' }
-    ];
-    
-    // Filtrar eventos que estão no período da simulação
-    return knownEvents.filter(event => 
-      event.date >= this.startDate && event.date <= this.endDate
-    );
-  }
-  
-  // Destacar eventos próximos ao tempo atual
-  highlightNearbyEvents() {
-    const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
-    const nearbyEvents = this.astronomicalEvents.filter(event => {
-      const timeDiff = Math.abs(event.date.getTime() - this.currentDate.getTime());
-      return timeDiff <= thirtyDaysInMs;
-    });
-    
-    // Chamar callback de UI se existir
-    if (this.uiCallbacks.onEventUpdate) {
-      this.uiCallbacks.onEventUpdate(nearbyEvents, this.currentDate);
-    }
-  }
-  
-  // Método para gerar mensagem de evento
-  getEventMessage(event, currentDate) {
-    const daysDiff = Math.round((event.date.getTime() - currentDate.getTime()) / (24 * 60 * 60 * 1000));
-    
-    if (daysDiff === 0) {
-      return `🌟 HOJE: ${event.name}`;
-    } else if (daysDiff > 0) {
-      return `🔮 Em ${daysDiff} dias: ${event.name}`;
-    } else {
-      return `📅 Há ${Math.abs(daysDiff)} dias: ${event.name}`;
-    }
   }
 }
 

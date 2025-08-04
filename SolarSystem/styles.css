@@ -188,8 +188,10 @@ canvas {
 
 .celestial-bodies-panel {
   position: absolute;
-  top: 220px;
-  right: 10px;
+  /*top: 220px;*/
+  /* right: 10px; */
+  top: 10px;
+  left: 10px;
   width: 250px;
   max-height: 60vh;
   overflow-y: auto;

@@ -5,7 +5,7 @@ class Camera {
     // Modo orbital
     this.theta = 0;        // ângulo horizontal (radians)
     this.phi = Math.PI / 3; // ângulo vertical (radians) - visão oblíqua melhor que polo
-    this.radius = 50;      // distância da câmera - mais próximo para objetos pequenos
+    this.radius = 1000;      // distância da câmera - mais próximo para objetos pequenos
 
     // Modo livre
     this.position = [0, 20, 30];  // posição inicial melhor para visualização
@@ -27,20 +27,15 @@ class Camera {
     this.keys = {};        // teclas pressionadas
     this.target = [0, 0, 0]; // alvo da câmera (usado no modo orbital)
     this.lookAt = null;    // direção de olhar (usado no modo livre)
+    this.followingBody = null; // corpo celeste sendo seguido
+    this.followDistance = 50;  // distância do seguimento
+    this.followHeight = 20;    // altura relativa no seguimento
 
     // Limites para modo orbital
     this.minRadius = 2.0;
     this.maxRadius = 100000000;
     this.minPhi = 0.01;
     this.maxPhi = Math.PI - 0.01;
-    
-    console.log("Câmera inicializada:", {
-      mode: this.mode,
-      radius: this.radius,
-      theta: this.theta,
-      phi: this.phi,
-      position: this.position
-    });
   }
   
   // Métodos auxiliares
@@ -88,12 +83,13 @@ class Camera {
   
   // Processar movimento WASD
   processMovement(deltaTime) {
+    // Atualizar seguimento de corpo celeste primeiro
+    this.updateFollowing();
+    
     if (this.mode !== 'free') return;
     
     // Log para debug (apenas primeira vez)
     if (Object.keys(this.keys).some(key => this.keys[key]) && !this.movementLogged) {
-      console.log("Processando movimento - teclas ativas:", 
-        Object.keys(this.keys).filter(key => this.keys[key]));
       this.movementLogged = true;
       setTimeout(() => this.movementLogged = false, 1000); // Reset log após 1s
     }
@@ -142,6 +138,28 @@ class Camera {
     }
   }
   
+  // Atualizar seguimento de corpo celeste
+  updateFollowing() {
+    if (!this.followingBody || !this.followingBody.position) return;
+    
+    const bodyPos = this.followingBody.position;
+    
+    if (this.mode === 'orbital') {
+      // No modo orbital, manter o corpo como centro
+      this.target = [...bodyPos];
+    } else {
+      // No modo livre, manter posição relativa ao corpo
+      this.position = [
+        bodyPos[0] + this.followDistance * Math.cos(this.yaw || 0),
+        bodyPos[1] + this.followHeight,
+        bodyPos[2] + this.followDistance * Math.sin(this.yaw || 0)
+      ];
+      
+      // Sempre olhar para o corpo
+      this.lookAt = [...bodyPos];
+    }
+  }
+  
   // Alternar entre modos
   toggleMode() {
     if (this.mode === 'orbital') {
@@ -149,21 +167,26 @@ class Camera {
       // Definir posição inicial no modo livre baseada na posição orbital atual
       const orbitalPos = this.getPosition();
       this.position = [...orbitalPos];
-      // Definir yaw e pitch para olhar em direção ao centro
-      const dx = 0 - this.position[0];
-      const dz = 0 - this.position[2];
-      const dy = 0 - this.position[1];
+      // Definir yaw e pitch para olhar em direção ao centro ou corpo seguido
+      const targetPos = this.followingBody ? this.followingBody.position : [0, 0, 0];
+      const dx = targetPos[0] - this.position[0];
+      const dz = targetPos[2] - this.position[2];
+      const dy = targetPos[1] - this.position[1];
       this.yaw = Math.atan2(dx, dz);
       this.pitch = Math.atan2(dy, Math.sqrt(dx*dx + dz*dz));
     } else {
       this.mode = 'orbital';
       // Calcular theta, phi e radius baseados na posição atual
-      const dx = this.position[0];
-      const dy = this.position[1];
-      const dz = this.position[2];
+      const targetPos = this.followingBody ? this.followingBody.position : [0, 0, 0];
+      const dx = this.position[0] - targetPos[0];
+      const dy = this.position[1] - targetPos[1];
+      const dz = this.position[2] - targetPos[2];
       this.radius = Math.sqrt(dx*dx + dy*dy + dz*dz);
       this.theta = Math.atan2(dx, dz);
       this.phi = Math.acos(dy / this.radius);
+      
+      // Definir alvo como o corpo seguido ou centro
+      this.target = [...targetPos];
     }
   }
   
@@ -174,7 +197,6 @@ class Camera {
     this.phi = 0.01;                   // quase no polo norte (evita singularidade)
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
-    console.log(`Câmera posicionada no polo norte solar (distância: ${distance})`);
   }
   
   setSouthPole(distance = 100) {
@@ -183,7 +205,6 @@ class Camera {
     this.phi = Math.PI - 0.01;         // quase no polo sul (evita singularidade)
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
-    console.log(`Câmera posicionada no polo sul solar (distância: ${distance})`);
   }
   
   setEclipticView(distance = 100, angle = 0) {
@@ -192,7 +213,6 @@ class Camera {
     this.phi = Math.PI / 2;           // no plano eclíptico (Y = 0)
     this.radius = distance;
     this.target = [0, 0, 0];          // olhando para o Sol
-    console.log(`Câmera posicionada no plano eclíptico (ângulo: ${(angle * 180 / Math.PI).toFixed(1)}°, distância: ${distance})`);
   }
   
   setInclinedView(inclination = 30, azimuth = 0, distance = 100) {
@@ -201,28 +221,44 @@ class Camera {
     this.phi = (90 - inclination) * Math.PI / 180;          // ângulo vertical em graus (90° - inclinação)
     this.radius = distance;
     this.target = [0, 0, 0];
-    console.log(`Câmera posicionada com inclinação ${inclination}° e azimute ${azimuth}° (distância: ${distance})`);
   }
   
   followCelestialBody(body, distance = 50, height = 20) {
-    if (!body || !body.getCurrentPosition) {
+    if (!body || !body.position) {
       console.warn('Corpo celeste inválido para seguir');
       return;
     }
     
-    const bodyPos = body.getCurrentPosition();
-    this.mode = 'free';
+    // Configurar seguimento contínuo
+    this.followingBody = body;
+    this.followDistance = distance;
+    this.followHeight = height;
     
-    // Posicionar câmera atrás e acima do corpo
-    this.position = [
-      bodyPos[0] - distance,  // atrás do corpo
-      bodyPos[1] + height,    // acima do corpo
-      bodyPos[2]
-    ];
+    const bodyPos = body.position;
     
-    // Olhar para o corpo
-    this.lookAt = [...bodyPos];
-    console.log(`Câmera seguindo ${body.name || 'corpo celeste'}`);
+    if (this.mode === 'orbital') {
+      // No modo orbital, focar no corpo
+      this.target = [...bodyPos];
+      this.radius = distance;
+    } else {
+      // No modo livre, posicionar câmera próxima ao corpo
+      this.position = [
+        bodyPos[0] + distance,
+        bodyPos[1] + height,
+        bodyPos[2]
+      ];
+      
+      // Olhar para o corpo
+      this.lookAt = [...bodyPos];
+    }
+    
+    console.log(`Seguindo corpo celeste: ${body.name}`);
+  }
+  
+  // Parar de seguir corpo celeste
+  stopFollowing() {
+    this.followingBody = null;
+    console.log('Parou de seguir corpo celeste');
   }
   
   setToHeliocentricCoords(rad_au, hgi_lat_deg, hgi_lon_deg, lookAtSun = true) {

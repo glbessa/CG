@@ -77,8 +77,6 @@ class CelestialBody {
 
     // Calcula o raio visual baseado no diâmetro real (com escala)
     _calculateRadius() {
-        if (this.name.toLowerCase() === 'sun') return 2;
-
         const calculatedRadius = this.physicalData.diameter / CONFIG.bodyScale;
         const minRadius = 0.1; // Raio mínimo para visibilidade
         const finalRadius = Math.max(calculatedRadius, minRadius);
@@ -89,7 +87,7 @@ class CelestialBody {
     // Calcula a velocidade de rotação baseada no período de rotação
     _calculateRotationSpeed() {
         if (this.physicalData.rotationPeriod === 0) return [0, 0.5, 0];
-        const speed = (23.9 / Math.abs(this.physicalData.rotationPeriod)) * CONFIG.simulationVelocity;
+        const speed = (CONFIG.earthHours / Math.abs(this.physicalData.rotationPeriod)) * CONFIG.simulationVelocity;
         const direction = this.physicalData.rotationPeriod < 0 ? -1 : 1;
         return [0, speed * direction, 0];
     }
@@ -97,9 +95,8 @@ class CelestialBody {
     // Calcula a velocidade orbital baseada no período orbital
     _calculateOrbitSpeed() {
         if (this.physicalData.orbitalPeriod === 0 || 
-            this.name.toLowerCase() === 'sun' || 
-            this.name.toLowerCase() === 'sol') {
-        return 0;
+            this.name.toLowerCase() === 'sun') {
+            return 0;
         }
         
         const orbitalPeriodInDays = this.physicalData.orbitalPeriod;

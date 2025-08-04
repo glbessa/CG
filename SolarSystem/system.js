@@ -72,6 +72,10 @@ class System {
         }
     }
 
+    getCelestialBodies() {
+        return this.celestialBodies;
+    }
+
     _processTemporalData(data) {
         const dataByDate = {};
         for (const entry of data) {

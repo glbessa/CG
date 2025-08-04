@@ -7,16 +7,17 @@
 </head>
 <body>
   <canvas id="canvas" tabindex="0"></canvas>
-  <div class="controls">
+  <!-- <div class="controls">
     <h3>Controles de Navegação</h3>
     <div class="mode" id="mode-indicator">Modo: Orbital</div>
     
     <div class="section">
       <strong>Geral:</strong><br>
       <span class="key">C</span> Alternar modo câmera<br>
-      <span class="key">ESC</span> Liberar mouse (modo livre)<br>
+      <span class="key">ESC</span> Liberar mouse / Parar seguimento<br>
       <span class="key">Space</span> Play/Pause linha do tempo<br>
-      <span class="key">R</span> Resetar linha do tempo
+      <span class="key">R</span> Resetar linha do tempo<br>
+      <span class="key">Clique</span> em corpo celeste para seguir
     </div>
     
     <div class="section">
@@ -41,7 +42,7 @@
       <span class="key">Mouse</span> Olhar ao redor<br>
       <span class="key">Scroll</span> Ajustar velocidade
     </div>
-  </div>
+  </div> -->
 
   <!-- Informações da Câmera -->
   <div class="camera-info" id="camera-info">
@@ -49,6 +50,10 @@
     <div class="info-row">
       <span class="label">Modo:</span>
       <span class="value" id="camera-mode">Orbital</span>
+    </div>
+    <div class="info-row">
+      <span class="label">Seguindo:</span>
+      <span class="value" id="camera-following">Nenhum</span>
     </div>
     <div class="info-row">
       <span class="label">Posição X:</span>
@@ -104,8 +109,8 @@
       <span id="current-date">1965-01-01</span>
     </div>
     <div class="timeline-controls">
-      <button class="timeline-button" id="timeline-play-pause">⏸️ Pausar</button>
-      <button class="timeline-button" id="timeline-reset">🔄 Resetar</button>
+      <button class="timeline-button" id="timeline-play-pause">Pausar</button>
+      <button class="timeline-button" id="timeline-reset">Resetar</button>
       <input 
         type="range" 
         id="timeline-slider" 

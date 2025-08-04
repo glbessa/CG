@@ -7,7 +7,7 @@ import System from "./system.js";
 import camera from "./camera.js";
 import CONFIG from "./config.js";
 import Timeline from "./timeline.js";
-import { setTimeline } from './ui.js'; // Importar função para conectar timeline ao UI
+import { setTimeline, populateCelestialBodiesList } from './ui.js'; // Importar funções para conectar timeline e listar corpos celestes ao UI
 
 let programInfo;
 let sunProgramInfo;
@@ -111,6 +111,10 @@ async function main() {
         // Conectar timeline ao UI
         setTimeline(timeline);
         console.log("Timeline conectada ao UI");
+        
+        // Popular lista de corpos celestes
+        populateCelestialBodiesList(solarSystem);
+        console.log("Lista de corpos celestes criada");
         
         setupBackground();
 

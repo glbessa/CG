@@ -2,9 +2,10 @@ const CONFIG = {
     distanceScale: 0.001, 
     bodyScale: 10000, // Reduzido para tornar os corpos visíveis
     
-    simulationVelocity: 1, // Dias por segundo na simulação
+    simulationVelocity: 1, // Dias por segundo na simulação (reduzido para permitir controle manual)
     startDatetime: new Date(1965, 0, 1), // Data inicial do sistema solar
     endDatetime: new Date(2035, 11, 30), // Data final do sistema solar
+    earthHours: 23.9,
     earthDistance: 149_597_870.7, // Distância média da Terra em km (1 UA)
     sunDiameter: 1_392_700, // Diâmetro do Sol em km
     gravitationalConstant: 6.67430e-11, // Constante gravitacional em m³/(kg·s²)
@@ -61,7 +62,10 @@ const CONFIG = {
         {
             name: 'comet_halley',
             orbits: 'sun',
-        }
+        },
+        {
+            name: "voyage_1",
+        },
     ],
     texturesFilepath: 'textures/',
     astronomicalData: 'data/astronomical-data.json',

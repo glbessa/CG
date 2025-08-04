@@ -45,6 +45,13 @@ canvas.addEventListener("mousemove", (e) => {
 
   console.log("Mouse move - deltaX:", deltaX, "deltaY:", deltaY, "modo:", camera.mode);
 
+  // Se estiver movendo a câmera manualmente, parar o seguimento
+  if (camera.followingBody && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
+    camera.stopFollowing();
+    updateFocusedBody(null);
+    console.log("Seguimento parado devido a movimento manual da câmera");
+  }
+
   if (camera.mode === 'orbital') {
     // Controle orbital
     camera.theta -= deltaX * 0.01;
@@ -88,6 +95,14 @@ document.addEventListener("keydown", (e) => {
   console.log("Tecla pressionada:", e.code);
   camera.keys[e.code] = true;
   
+  // Se estiver usando WASD para mover no modo livre, parar o seguimento
+  if (camera.mode === 'free' && camera.followingBody && 
+      ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'ShiftLeft'].includes(e.code)) {
+    camera.stopFollowing();
+    updateFocusedBody(null);
+    console.log("Seguimento parado devido a movimento manual (teclado)");
+  }
+  
   // Tecla para alternar modo (C)
   if (e.code === 'KeyC') {
     camera.toggleMode();
@@ -95,10 +110,12 @@ document.addEventListener("keydown", (e) => {
     console.log(`Modo da câmera alterado para: ${camera.mode}`);
   }
   
-  // ESC para sair do pointer lock
+  // ESC para sair do pointer lock e parar seguimento
   if (e.code === 'Escape') {
     document.exitPointerLock();
-    console.log("Pointer lock liberado");
+    camera.stopFollowing();
+    updateFocusedBody(null); // Remove foco visual
+    console.log("Pointer lock liberado e seguimento parado");
   }
   
   // Controles da linha do tempo
@@ -211,6 +228,14 @@ function updateCameraInfo() {
   const cameraMode = document.getElementById('camera-mode');
   if (cameraMode) {
     cameraMode.textContent = camera.mode === 'orbital' ? 'Orbital' : 'Livre';
+  }
+  
+  // Atualizar corpo sendo seguido
+  const cameraFollowing = document.getElementById('camera-following');
+  if (cameraFollowing) {
+    cameraFollowing.textContent = camera.followingBody ? 
+      camera.followingBody.name.charAt(0).toUpperCase() + camera.followingBody.name.slice(1) : 
+      'Nenhum';
   }
   
   // Obter posição atual da câmera
@@ -378,23 +403,23 @@ function populateCelestialBodiesList(solarSystem) {
   
   // Mapear ícones e tipos para cada corpo celeste
   const bodyInfo = {
-    'sun': { icon: '☀️', type: 'Estrela', distance: '0 AU' },
-    'mercury': { icon: '☿️', type: 'Planeta', distance: '0.39 AU' },
-    'venus': { icon: '♀️', type: 'Planeta', distance: '0.72 AU' },
-    'earth': { icon: '🌍', type: 'Planeta', distance: '1.00 AU' },
-    'moon': { icon: '🌙', type: 'Satélite', distance: '384.4k km da Terra' },
-    'mars': { icon: '♂️', type: 'Planeta', distance: '1.52 AU' },
-    'jupiter': { icon: '♃', type: 'Gigante Gasoso', distance: '5.20 AU' },
-    'saturn': { icon: '♄', type: 'Gigante Gasoso', distance: '9.54 AU' },
-    'uranus': { icon: '♅', type: 'Gigante de Gelo', distance: '19.2 AU' },
-    'neptune': { icon: '♆', type: 'Gigante de Gelo', distance: '30.1 AU' },
-    'pluto': { icon: '♇', type: 'Planeta Anão', distance: '39.5 AU' },
-    'comet_halley': { icon: '☄️', type: 'Cometa', distance: 'Órbita Elíptica' }
+    'sun': { type: 'Estrela', distance: '0 AU' },
+    'mercury': { type: 'Planeta', distance: '0.39 AU' },
+    'venus': { type: 'Planeta', distance: '0.72 AU' },
+    'earth': { type: 'Planeta', distance: '1.00 AU' },
+    'moon': { type: 'Satélite', distance: '384.4k km da Terra' },
+    'mars': { type: 'Planeta', distance: '1.52 AU' },
+    'jupiter': { type: 'Planeta', distance: '5.20 AU' },
+    'saturn': { type: 'Planeta', distance: '9.54 AU' },
+    'uranus': { type: 'Planeta', distance: '19.2 AU' },
+    'neptune': { type: 'Planeta', distance: '30.1 AU' },
+    'pluto': { type: 'Planeta Anão', distance: '39.5 AU' },
+    'comet_halley': { type: 'Cometa', distance: 'Órbita Elíptica' },
+    'voyager_1': { type: 'Sonda Espacial', distance: 'Órbita Elíptica' },
   };
   
   bodies.forEach(body => {
-    const bodyData = bodyInfo[body.name.toLowerCase()] || { 
-      icon: '⭐', 
+    const bodyData = bodyInfo[body.name.toLowerCase()] || {
       type: 'Desconhecido', 
       distance: 'N/A' 
     };
@@ -405,8 +430,7 @@ function populateCelestialBodiesList(solarSystem) {
     
     bodyItem.innerHTML = `
       <div class="body-name">
-        <span class="body-icon">${bodyData.icon}</span>
-        <span>${body.name.charAt(0).toUpperCase() + body.name.slice(1)}</span>
+        <span>${body.name.charAt(0).toUpperCase() + body.name.slice(1).replace('_', ' ')}</span>
       </div>
       <div class="body-info">
         <div class="body-distance">${bodyData.distance}</div>
@@ -426,38 +450,18 @@ function populateCelestialBodiesList(solarSystem) {
 
 // Função para focar a câmera em um corpo celeste
 function focusCameraOnBody(body) {
-  if (camera.mode === 'orbital') {
-    // No modo orbital, ajustar a distância baseada no tamanho do corpo
-    const baseDistance = body.name === 'sun' ? 50 : 
-                        body.name === 'jupiter' || body.name === 'saturn' ? 30 :
-                        body.name === 'earth' || body.name === 'mars' ? 20 :
-                        body.name === 'moon' ? 10 : 25;
-    
-    camera.radius = baseDistance;
-    camera.theta = 0;
-    camera.phi = Math.PI / 6; // 30 graus
-    
-    // Definir o centro de foco (posição atual do corpo)
-    camera.target = body.position ? [...body.position] : [0, 0, 0];
-  } else {
-    // No modo livre, mover a câmera para próximo do corpo
-    const distance = body.name === 'sun' ? 40 : 
-                    body.name === 'jupiter' || body.name === 'saturn' ? 25 :
-                    body.name === 'earth' || body.name === 'mars' ? 15 :
-                    body.name === 'moon' ? 8 : 20;
-    
-    const bodyPos = body.position ? [...body.position] : [0, 0, 0];
-    camera.position = [
-      bodyPos[0] + distance,
-      bodyPos[1] + distance * 0.5,
-      bodyPos[2] + distance
-    ];
-    
-    // Olhar para o corpo
-    camera.lookAt = [...bodyPos];
-  }
+  // Definir distância baseada no tamanho do corpo
+  const baseDistance = body.name === 'sun' ? 50 : 
+                      body.name === 'jupiter' || body.name === 'saturn' ? 30 :
+                      body.name === 'earth' || body.name === 'mars' ? 20 :
+                      body.name === 'moon' ? 10 : 25;
   
-  console.log(`Câmera focada em: ${body.name}`);
+  const height = baseDistance * 0.3; // Altura proporcional à distância
+  
+  // Usar o método de seguimento da câmera
+  camera.followCelestialBody(body, baseDistance, height);
+  
+  console.log(`Câmera focada e seguindo: ${body.name}`);
 }
 
 // Função para atualizar o corpo celeste em foco visual
@@ -467,10 +471,12 @@ function updateFocusedBody(bodyName) {
     item.classList.remove('focused');
   });
   
-  // Adicionar foco ao item selecionado
-  const selectedItem = document.querySelector(`[data-body-name="${bodyName}"]`);
-  if (selectedItem) {
-    selectedItem.classList.add('focused');
+  // Adicionar foco ao item selecionado (se bodyName não for null)
+  if (bodyName) {
+    const selectedItem = document.querySelector(`[data-body-name="${bodyName}"]`);
+    if (selectedItem) {
+      selectedItem.classList.add('focused');
+    }
   }
 }
 
