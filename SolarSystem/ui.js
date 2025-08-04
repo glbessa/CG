@@ -21,6 +21,7 @@ function setTimeline(timelineInstance) {
 
 // Event listeners para controles
 canvas.addEventListener("mousedown", (e) => {
+  console.log("Mouse down - modo:", camera.mode);
   camera.isDragging = true;
   camera.lastX = e.clientX;
   camera.lastY = e.clientY;
@@ -30,6 +31,7 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mouseup", () => {
+  console.log("Mouse up");
   camera.isDragging = false;
 });
 
@@ -40,6 +42,8 @@ canvas.addEventListener("mousemove", (e) => {
   const deltaY = e.clientY - camera.lastY;
   camera.lastX = e.clientX;
   camera.lastY = e.clientY;
+
+  console.log("Mouse move - deltaX:", deltaX, "deltaY:", deltaY, "modo:", camera.mode);
 
   if (camera.mode === 'orbital') {
     // Controle orbital
@@ -59,14 +63,20 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 canvas.addEventListener("wheel", (e) => {
+  e.preventDefault(); // Prevenir scroll da página
+  console.log("Wheel event - deltaY:", e.deltaY, "modo:", camera.mode);
+  
   if (camera.mode === 'orbital') {
-    camera.radius += e.deltaY * 0.01;
+    const zoomSpeed = 0.1;
+    camera.radius += e.deltaY * zoomSpeed;
     camera.radius = Math.max(camera.minRadius, Math.min(camera.maxRadius, camera.radius));
+    console.log("Novo radius:", camera.radius);
   } else {
     // No modo livre, wheel pode ajustar velocidade
     camera.speed += e.deltaY * -0.001;
     camera.speed = Math.max(0.01, Math.min(1.0, camera.speed));
     updateSpeedIndicator();
+    console.log("Nova velocidade:", camera.speed);
   }
   
   // Atualizar informações da câmera imediatamente
@@ -75,18 +85,20 @@ canvas.addEventListener("wheel", (e) => {
 
 // Controles de teclado
 document.addEventListener("keydown", (e) => {
+  console.log("Tecla pressionada:", e.code);
   camera.keys[e.code] = true;
   
   // Tecla para alternar modo (C)
   if (e.code === 'KeyC') {
     camera.toggleMode();
     updateModeIndicator();
-    console.log(`Modo da câmera: ${camera.mode}`);
+    console.log(`Modo da câmera alterado para: ${camera.mode}`);
   }
   
   // ESC para sair do pointer lock
   if (e.code === 'Escape') {
     document.exitPointerLock();
+    console.log("Pointer lock liberado");
   }
   
   // Controles da linha do tempo
@@ -127,6 +139,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 document.addEventListener("keyup", (e) => {
+  console.log("Tecla liberada:", e.code);
   camera.keys[e.code] = false;
 });
 
@@ -147,6 +160,15 @@ document.addEventListener('DOMContentLoaded', () => {
   updateSpeedIndicator();
   updateCameraInfo();
   startCameraInfoUpdates();
+  
+  // Focar no canvas para receber eventos de teclado
+  canvas.focus();
+  console.log("Canvas focado e controles inicializados");
+  
+  // Adicionar clique no canvas para focar
+  canvas.addEventListener('click', () => {
+    canvas.focus();
+  });
 });
 
 function handlePointerLockMouseMove(e) {

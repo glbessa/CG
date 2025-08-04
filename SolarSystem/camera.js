@@ -4,13 +4,13 @@ class Camera {
   constructor(options = {}) {
     // Modo orbital
     this.theta = 0;        // ângulo horizontal (radians)
-    this.phi = 0.01;       // ângulo vertical (radians) - polo norte solar (quase 0)
-    this.radius = 100;      // distância da câmera
+    this.phi = Math.PI / 3; // ângulo vertical (radians) - visão oblíqua melhor que polo
+    this.radius = 50;      // distância da câmera - mais próximo para objetos pequenos
 
     // Modo livre
-    this.position = [0, 100, 0];  // posição da câmera no modo livre - polo norte solar
+    this.position = [0, 20, 30];  // posição inicial melhor para visualização
     this.yaw = 0;          // rotação horizontal (radians)
-    this.pitch = -Math.PI/2;      // rotação vertical (radians) - olhando para baixo do polo norte
+    this.pitch = -0.3;     // rotação vertical (radians) - olhando ligeiramente para baixo
     
     // Configurações gerais
     this.fov = Math.PI / 4; // campo de visão
@@ -33,6 +33,14 @@ class Camera {
     this.maxRadius = 100000000;
     this.minPhi = 0.01;
     this.maxPhi = Math.PI - 0.01;
+    
+    console.log("Câmera inicializada:", {
+      mode: this.mode,
+      radius: this.radius,
+      theta: this.theta,
+      phi: this.phi,
+      position: this.position
+    });
   }
   
   // Métodos auxiliares
@@ -81,6 +89,14 @@ class Camera {
   // Processar movimento WASD
   processMovement(deltaTime) {
     if (this.mode !== 'free') return;
+    
+    // Log para debug (apenas primeira vez)
+    if (Object.keys(this.keys).some(key => this.keys[key]) && !this.movementLogged) {
+      console.log("Processando movimento - teclas ativas:", 
+        Object.keys(this.keys).filter(key => this.keys[key]));
+      this.movementLogged = true;
+      setTimeout(() => this.movementLogged = false, 1000); // Reset log após 1s
+    }
     
     const moveSpeed = this.speed * deltaTime * 60; // 60 fps como base
     

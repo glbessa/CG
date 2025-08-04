@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+  <canvas id="canvas" tabindex="0"></canvas>
   <div class="controls">
     <h3>Controles de Navegação</h3>
     <div class="mode" id="mode-indicator">Modo: Orbital</div>
@@ -22,7 +22,9 @@
     <div class="section">
       <strong>Linha do Tempo:</strong><br>
       <span class="key">←</span>/<span class="key">→</span> ±30 dias<br>
-      <span class="key">Shift</span>+<span class="key">←</span>/<span class="key">→</span> ±1 ano
+      <span class="key">Shift</span>+<span class="key">←</span>/<span class="key">→</span> ±1 ano<br>
+      <span class="key">Clique</span> no slider para navegar<br>
+      <span class="key">Menu</span> velocidade para acelerar/desacelerar
     </div>
     
     <div class="section">
@@ -93,6 +95,41 @@
   <div class="celestial-bodies-panel" id="celestial-bodies-panel">
     <h3>Corpos Celestes</h3>
     <div id="celestial-bodies-list">
+    </div>
+  </div>
+
+  <!-- Timeline Container -->
+  <div class="timeline-container" id="timeline-container">
+    <div class="timeline-header">
+      <span id="current-date">1965-01-01</span>
+    </div>
+    <div class="timeline-controls">
+      <button class="timeline-button" id="timeline-play-pause">⏸️ Pausar</button>
+      <button class="timeline-button" id="timeline-reset">🔄 Resetar</button>
+      <input 
+        type="range" 
+        id="timeline-slider" 
+        class="timeline-slider" 
+        min="0" 
+        max="100" 
+        value="0" 
+        step="0.1"
+      >
+      <select id="timeline-speed" class="timeline-button" style="background: #333; color: white;">
+        <option value="0.1">0.1x</option>
+        <option value="0.5">0.5x</option>
+        <option value="1" selected>1x</option>
+        <option value="2">2x</option>
+        <option value="5">5x</option>
+        <option value="10">10x</option>
+        <option value="50">50x</option>
+        <option value="100">100x</option>
+      </select>
+    </div>
+    <div class="timeline-info">
+      <span>1965-01-01</span>
+      <span class="current-date" id="timeline-current-display">1965-01-01</span>
+      <span>2035-12-30</span>
     </div>
   </div>
 

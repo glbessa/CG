@@ -1,10 +1,10 @@
 const CONFIG = {
-    distanceScale: 10, 
-    bodyScale: 10000, 
+    distanceScale: 0.01, 
+    bodyScale: 10000, // Reduzido para tornar os corpos visíveis
     
     simulationVelocity: 10, // Dias por segundo na simulação
-    startDatetime: new Date('1965-01-01T00:00:00Z'), // Data inicial do sistema solar
-    endDatetime: new Date('2035-12-30T00:00:00Z'), // Data final do sistema solar
+    startDatetime: new Date(1965, 0, 1), // Data inicial do sistema solar
+    endDatetime: new Date(2035, 11, 30), // Data final do sistema solar
     earthDistance: 149_597_870.7, // Distância média da Terra em km (1 UA)
     sunDiameter: 1_392_700, // Diâmetro do Sol em km
     gravitationalConstant: 6.67430e-11, // Constante gravitacional em m³/(kg·s²)
@@ -20,12 +20,12 @@ const CONFIG = {
         },
         {
             name: 'venus',
-            texture: '2k_venus.jpg',
+            texture: '2k_venus_atmosphere.jpg',
             orbits: 'sun',
         },
         {
             name: 'earth',
-            texture: '2k_earth.jpg',
+            texture: '2k_earth_daymap.jpg',
             orbits: 'sun',
         },
         {
@@ -60,13 +60,12 @@ const CONFIG = {
         },
         {
             name: 'comet_halley',
-            texture: '2k_comet_halley.jpg',
             orbits: 'sun',
         }
     ],
     texturesFilepath: 'textures/',
     astronomicalData: 'data/astronomical-data.json',
-    temporalDataFilepath: 'data/temporal-data/',
+    temporalDataFilepath: 'data/orbital/',
     shaders: {
         vertex: 'shaders/general.vert',
         fragment: 'shaders/general.frag',

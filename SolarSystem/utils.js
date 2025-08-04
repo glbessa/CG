@@ -9,21 +9,24 @@ async function loadAsset(url) {
 }
 
 function heliocentricToCartesian(rad_au, hgi_lat_deg, hgi_lon_deg) {
+    console.log("heliocentricToCartesian input:", { rad_au, hgi_lat_deg, hgi_lon_deg });
+    
     const hgi_lat = hgi_lat_deg * Math.PI / 180;
     const hgi_lon = hgi_lon_deg * Math.PI / 180;
 
-    const visualDistance = rad_au / CONFIG.scale;
+    const visualDistance = rad_au / CONFIG.distanceScale;
 
     const x = visualDistance * Math.cos(hgi_lat) * Math.cos(hgi_lon);
     const y = visualDistance * Math.sin(hgi_lat);
     const z = visualDistance * Math.cos(hgi_lat) * Math.sin(hgi_lon);
 
+    console.log("heliocentricToCartesian output:", { x, y, z });
     return [x, y, z];
 }
 
 function cartesianToHeliocentric(x, y, z) {
-    const rad_au = Math.sqrt(x * x + y * y + z * z) * CONFIG.scale;
-    const hgi_lat_rad = Math.asin(y / (rad_au / CONFIG.scale));
+    const rad_au = Math.sqrt(x * x + y * y + z * z) * CONFIG.distanceScale;
+    const hgi_lat_rad = Math.asin(y / (rad_au / CONFIG.distanceScale));
     const hgi_lat_deg = hgi_lat_rad * 180 / Math.PI;
     const hgi_lon_rad = Math.atan2(z, x);
     const hgi_lon_deg = hgi_lon_rad * 180 / Math.PI;
