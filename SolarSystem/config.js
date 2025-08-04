@@ -1,5 +1,5 @@
 const CONFIG = {
-    distanceScale: 0.01, 
+    distanceScale: 0.001, 
     bodyScale: 10000, // Reduzido para tornar os corpos visíveis
     
     simulationVelocity: 1, // Dias por segundo na simulação

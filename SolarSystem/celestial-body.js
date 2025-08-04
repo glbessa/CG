@@ -8,8 +8,6 @@ class CelestialBody {
     constructor(options = {}) {
         this.name = options.name || "Unnamed";
         
-        console.log(`Criando corpo celeste ${this.name} com opções:`, options);
-        
         // Dados físicos essenciais - usar diretamente as propriedades passadas
         this.physicalData = {
             diameter: options.diameter || options.physicalData?.diameter || 1000,
@@ -20,7 +18,6 @@ class CelestialBody {
             orbitalEccentricity: options.orbitalEccentricity || options.physicalData?.orbitalEccentricity || 0
         };
         
-        console.log(`Dados físicos para ${this.name}:`, this.physicalData);
 
         // Coordenadas heliocêntricas para posição inicial
         this.heliocentricCoords = {
@@ -58,19 +55,15 @@ class CelestialBody {
 
     _initGeometry() {
         // Criar geometria esférica com base no raio
-        console.log(`Criando geometria para ${this.name} com raio ${this.radius}`);
         this.bufferInfo = twgl.primitives.createSphereBufferInfo(gl, this.radius, 64, 32);
         
         if (!this.bufferInfo) {
             console.error(`Erro: BufferInfo não criado para ${this.name}`);
-        } else {
-            console.log(`BufferInfo criado para ${this.name}:`, this.bufferInfo.numElements, "elementos");
         }
     }
 
     _initTexture() {
         if (this.textureUrl) {
-            console.log(`Carregando textura para ${this.name}: ${this.textureUrl}`);
             this.texture = twgl.createTexture(gl, {
                 src: this.textureUrl,
                 crossOrigin: '',
@@ -79,8 +72,6 @@ class CelestialBody {
             if (!this.texture) {
                 console.error(`Erro: Textura não carregada para ${this.name}`);
             }
-        } else {
-            console.log(`${this.name} não tem textura, usando cor sólida:`, this.color);
         }
     }
 
@@ -92,7 +83,6 @@ class CelestialBody {
         const minRadius = 0.1; // Raio mínimo para visibilidade
         const finalRadius = Math.max(calculatedRadius, minRadius);
         
-        console.log(`Raio calculado para ${this.name}: ${calculatedRadius} (mín: ${minRadius}) = ${finalRadius}`);
         return finalRadius;
     }
 
@@ -124,18 +114,18 @@ class CelestialBody {
         if (this.physicalData.distanceFromSun === 0 || 
             this.name.toLowerCase() === 'sun' || 
             this.name.toLowerCase() === 'sol') {
-        return {
-            semiMajorAxis: 0,
-            semiMinorAxis: 0,
-            eccentricity: 0,
-            perihelion: 0,
-            aphelion: 0,
-            focalDistance: 0,
-            isElliptical: false,
-            parent: null,
-            inclination: 0,
-            speed: 0
-        };
+            return {
+                semiMajorAxis: 0,
+                semiMinorAxis: 0,
+                eccentricity: 0,
+                perihelion: 0,
+                aphelion: 0,
+                focalDistance: 0,
+                isElliptical: false,
+                parent: null,
+                inclination: 0,
+                speed: 0
+            };
         }
 
         const earthDistance = 149.6; // milhões de km (1 AU)
@@ -152,31 +142,28 @@ class CelestialBody {
         const visualAphelion = visualSemiMajorAxis * (1 + eccentricity);
         
         return {
-        semiMajorAxis: visualSemiMajorAxis,
-        semiMinorAxis: semiMinorAxis,
-        eccentricity: eccentricity,
-        perihelion: visualPerihelion,
-        aphelion: visualAphelion,
-        focalDistance: focalDistance,
-        isElliptical: eccentricity > 0.001,
-        inclination: this.physicalData.orbitalInclination * Math.PI / 180,
-        speed: this._calculateOrbitSpeed(),
-        parent: orbitOptions.parent || null
+            semiMajorAxis: visualSemiMajorAxis,
+            semiMinorAxis: semiMinorAxis,
+            eccentricity: eccentricity,
+            perihelion: visualPerihelion,
+            aphelion: visualAphelion,
+            focalDistance: focalDistance,
+            isElliptical: eccentricity > 0.001,
+            inclination: this.physicalData.orbitalInclination * Math.PI / 180,
+            speed: this._calculateOrbitSpeed(),
+            parent: orbitOptions.parent || null
         };
     }
 
     // Calcula posição inicial baseada em coordenadas heliocêntricas ou posição fornecida
     _calculateInitialPosition(options) {
-        console.log(`Calculando posição inicial para ${this.name}:`, options);
         
         if (options.position) {
-            console.log(`- Usando posição fornecida:`, options.position);
             return options.position;
         }
         
         if (options.rad_au !== undefined && options.hgi_lat !== undefined && options.hgi_lon !== undefined) {
             const pos = heliocentricToCartesian(options.rad_au, options.hgi_lat, options.hgi_lon);
-            console.log(`- Posição convertida de heliocêntrica:`, pos);
             return pos;
         }
         
@@ -189,11 +176,9 @@ class CelestialBody {
                 0,
                 orbitRadius * Math.sin(angle)
             ];
-            console.log(`- Posição orbital calculada para ${this.name}:`, pos);
             return pos;
         }
         
-        console.log(`- Usando posição padrão (origem) para ${this.name}`);
         return [0, 0, 0];
     }
 
@@ -283,11 +268,6 @@ class CelestialBody {
         
         // Debug da primeira renderização
         if (!this.renderDebugShown) {
-            console.log(`Primeira renderização de ${this.name}:`);
-            console.log("- Posição:", this.position);
-            console.log("- Raio:", this.radius);
-            console.log("- UseTexture:", this.useTexture);
-            console.log("- IsEmissive:", this.isEmissive);
             this.renderDebugShown = true;
         }
         

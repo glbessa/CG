@@ -9,8 +9,6 @@ async function loadAsset(url) {
 }
 
 function heliocentricToCartesian(rad_au, hgi_lat_deg, hgi_lon_deg) {
-    console.log("heliocentricToCartesian input:", { rad_au, hgi_lat_deg, hgi_lon_deg });
-    
     const hgi_lat = hgi_lat_deg * Math.PI / 180;
     const hgi_lon = hgi_lon_deg * Math.PI / 180;
 
@@ -20,7 +18,6 @@ function heliocentricToCartesian(rad_au, hgi_lat_deg, hgi_lon_deg) {
     const y = visualDistance * Math.sin(hgi_lat);
     const z = visualDistance * Math.cos(hgi_lat) * Math.sin(hgi_lon);
 
-    console.log("heliocentricToCartesian output:", { x, y, z });
     return [x, y, z];
 }
 
