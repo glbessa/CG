@@ -13,6 +13,7 @@ let programInfo;
 let sunProgramInfo;
 let cometProgramInfo;
 let solarSystem;
+let background;
 let timeline;
 let projectionMatrix = m4.create();
 let viewMatrix = m4.create();
@@ -111,11 +112,25 @@ async function main() {
         setTimeline(timeline);
         console.log("Timeline conectada ao UI");
         
+        setupBackground();
+
         requestAnimationFrame(render);
         
     } catch (error) {
         console.error("Erro na inicialização:", error);
     }
+}
+
+function setupBackground() {
+    const backgroundTexture = twgl.createTexture(gl, {
+        src: 'textures/2k_stars_milky_way.jpg',
+    });
+    background = {
+        position: [0, 0, -100], // Posição atrás do sistema solar
+        scale: 1000, // Escala grande para cobrir o fundo
+        texture: backgroundTexture,
+        bufferInfo: twgl.primitives.createSphereBufferInfo(gl, 100000, 32, 32),
+    };
 }
 
 function render(time) {
@@ -204,6 +219,14 @@ function render(time) {
         simulationTime = time * CONFIG.simulationVelocity / 86400; // time em segundos -> dias
     }
     
+    // Renderizar fundo
+    gl.useProgram(programInfo.program);
+    twgl.setBuffersAndAttributes(gl, programInfo, background.bufferInfo);
+    twgl.setUniforms(programInfo, {
+        u_viewProjection: viewProjectionMatrix,
+        u_texture: background.texture,
+    });
+
     solarSystem.update(simulationTime);
     solarSystem.render(viewProjectionMatrix, lightPosition, cameraPosition);
 

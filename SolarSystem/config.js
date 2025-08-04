@@ -2,7 +2,7 @@ const CONFIG = {
     distanceScale: 0.01, 
     bodyScale: 10000, // Reduzido para tornar os corpos visíveis
     
-    simulationVelocity: 10, // Dias por segundo na simulação
+    simulationVelocity: 1, // Dias por segundo na simulação
     startDatetime: new Date(1965, 0, 1), // Data inicial do sistema solar
     endDatetime: new Date(2035, 11, 30), // Data final do sistema solar
     earthDistance: 149_597_870.7, // Distância média da Terra em km (1 UA)
